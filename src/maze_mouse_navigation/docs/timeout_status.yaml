@@ -1,0 +1,2 @@
+data: '{"state":"DRIVING","data_ready":false,"cell":[0,2],"pose":[0.50034822,3.4357679,1.5726943],"target":[0.5,3.5],"front":2.5377486,"left":0.43748144,"right":1.4412483,"front_min":1.7956246,"angular_speed":-0.0048573874,"command_speed":0,"known_edges":24,"moves":18,"replans":19,"odom_distance_m":18.734485,"elapsed_sim_s":159,"reason":"","flood":[14,13,12,13,14,15,9,10,11,18,17,16,8,7,6,5,4,3,7,6,5,4,3,2,6,5,4,3,2,1,5,4,3,2,1,0]}'
+---

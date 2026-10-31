@@ -1,0 +1,2 @@
+data: '{"state":"TURNING","data_ready":true,"cell":[1,5],"pose":[1.4720654,5.4991861,-1.4997818],"target":[1.5,4.5],"front":1.4813303,"left":0.47382895,"right":1.418965,"front_min":1.4604247,"angular_speed":-0.087289445,"command_speed":0,"known_edges":11,"moves":4,"replans":6,"odom_distance_m":3.9605676,"elapsed_sim_s":50.1,"reason":"","flood":[10,9,8,7,6,5,9,8,7,6,5,4,8,7,6,5,4,3,9,8,5,4,3,2,8,5,4,3,2,1,7,6,3,2,1,0]}'
+---

@@ -1,0 +1,33 @@
+maze_navigator:
+  ros__parameters:
+    use_sim_time: true
+    columns: 6
+    rows: 6
+    cell_size: 1.0
+    wall_thickness: 0.12
+    start_x: 0
+    start_y: 0
+    start_heading: 0  # east=0, north=1, west=2, south=3
+    goal_x: 5
+    goal_y: 5
+    exit_heading: 0
+    exit_distance: 0.95  # goal-cell centre to point outside exit
+    sector_width_deg: 30.0
+    front_center_deg: 0.0
+    left_center_deg: 90.0
+    right_center_deg: -90.0
+    wall_detection_distance: 0.68
+    side_wall_max: 0.70
+    front_stop_distance: 0.20
+    observation_scans: 3
+    max_linear_speed: 0.20
+    max_angular_speed: 0.60
+    linear_acceleration: 0.35
+    heading_gain: 1.6
+    heading_damping: 0.25
+    lateral_gain: 1.8
+    centering_gain: 0.8
+    max_centering_correction: 0.15
+    position_tolerance: 0.055
+    heading_tolerance: 0.04
+    data_timeout: 1.0

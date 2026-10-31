@@ -1,0 +1,2 @@
+data: '{"state":"COMPLETE","data_ready":true,"cell":[5,5],"pose":[6.4037067,5.5006238,-0.00097732305],"target":[6.45,5.5],"front":3.4737927,"left":3.4722414,"right":3.4506257,"front_min":null,"angular_speed":0.0038402423,"command_speed":0,"known_edges":60,"moves":50,"replans":50,"odom_distance_m":51.336732,"elapsed_sim_s":503.7,"reason":"Reached exit target","flood":[18,17,16,17,18,19,13,14,15,22,21,20,12,9,8,7,8,9,11,10,5,6,11,10,12,15,4,3,2,1,13,14,5,6,1,0]}'
+---

@@ -1,0 +1,5 @@
+[INFO] [1793459504.793249685] [maze_navigator]: C++20 navigator: unknown 6x6 maze, goal=(5,5), sectors=30 deg
+[INFO] [1793459538.509767279] [maze_navigator]: cell=(3,1), known_edges=3, next=(4.50,1.50), heading=0
+[INFO] [1793459551.547568602] [maze_navigator]: cell=(4,1), known_edges=7, next=(5.50,1.50), heading=0
+[INFO] [1793459558.362424587] [maze_navigator]: cell=(5,1), known_edges=9, next=(5.50,0.50), heading=3
+[INFO] [1793459568.999713841] [maze_navigator]: cell=(5,0), known_edges=10, next=(4.50,0.50), heading=2
