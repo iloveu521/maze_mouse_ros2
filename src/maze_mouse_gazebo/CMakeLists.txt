@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.22)
 project(maze_mouse_gazebo)
 
 find_package(ament_cmake REQUIRED)

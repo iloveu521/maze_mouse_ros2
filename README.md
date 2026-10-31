@@ -2,6 +2,8 @@
 
 《机器人感知与控制综合实践》的 ROS 2 Humble 工作空间。
 
+构建环境使用 **CMake 3.22**（本机为 `/usr/bin/cmake` 3.22.1），导航算法保持 **C++20**。两个功能包的最低 CMake 版本统一为 3.22。
+
 - `maps/`：老师提供的原始世界文件，保持原样。
 - `src/maze_mouse_gazebo/`：约 6×6 米的 6×6 单元迷宫、Gazebo/TurtleBot3/RViz2 启动文件及地图生成和校验工具。
 - `src/maze_mouse_navigation/`：C++20 前/左/右 30° 雷达分区、居中控制、在线泛洪搜索与路径跟随。

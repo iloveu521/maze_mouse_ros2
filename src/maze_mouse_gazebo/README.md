@@ -41,7 +41,7 @@
 
 ## 安装与编译
 
-Ubuntu 22.04、ROS 2 Humble：
+Ubuntu 22.04、ROS 2 Humble、CMake 3.22（本机为 3.22.1）：
 
 ```bash
 sudo apt update

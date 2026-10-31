@@ -6,6 +6,8 @@
 
 Ubuntu 22.04、ROS 2 Humble、GCC 11.4，使用 `colcon build --symlink-install --packages-up-to maze_mouse_navigation`。编译命令确认核心库、节点和测试均使用 `-std=c++20`。
 
+构建工具统一为 CMake 3.22，实际使用 `/usr/bin/cmake` 3.22.1。通过 `--cmake-clean-cache` 清除两个功能包的 CMake 配置缓存后重新配置、编译和安装；两份 `CMakeCache.txt` 均确认版本为 3.22.1，编译参数仍为 `-std=c++20`。随后执行两个功能包的 `colcon test`，汇总结果为 10 tests、0 errors、0 failures、0 skipped（其中包含下列 8 项 C++ 单元检查）。此次复验只涉及工具链与自动检查，未重新运行完整 Gazebo 探索。
+
 8 项 C++ GoogleTest 检查通过：
 
 - 前方扇区跨越 0° 时的选择和垂直距离投影。
