@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-10-31T00:07:27.782414+08:00",
+  "mode": "Gazebo Classic headless, actual TurtleBot3 Burger physics and ROS topics",
+  "laser_frame": "base_scan",
+  "laser_samples": 360,
+  "laser_valid_finite_samples": 260,
+  "laser_min_distance_m": 0.4207302927970886,
+  "odom_frame": "odom",
+  "odom_initial_xy_m": [
+    0.500069032797618,
+    0.49999559282632056
+  ],
+  "odom_final_xy_m": [
+    0.7407772296207359,
+    0.4999990724576493
+  ],
+  "command_speed_m_s": 0.12,
+  "command_duration_wall_seconds": 2.0,
+  "measured_odom_displacement_m": 0.24070819684826827,
+  "received_messages": {
+    "scan": 11,
+    "odom": 65
+  },
+  "stopped_after_check": true,
+  "scope": "Short straight motion and topic smoke check; not autonomous maze traversal"
+}
