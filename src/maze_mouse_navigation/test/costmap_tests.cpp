@@ -274,3 +274,76 @@ TEST(CostmapPlanner, ReadyMapStillRejectsUnknownRobotPosition) {
 
 INSTANTIATE_TEST_SUITE_P(CleanAndNoisyOffsetStart, CostmapWorld,
                          ::testing::Bool());
+
+TEST(CostmapLiveParameters, InflationUpdatePreservesObservedMap) {
+  LocalCostmap map;
+  const WallPose pose{};
+  ASSERT_TRUE(map.update(pose, wall_scan(pose, 1.0), 0, pi / 180, 0.12, 3.5));
+  const auto observed = map.raw_data();
+  EXPECT_FALSE(map.traversable(0.74, 0));
+  CostmapParameters smaller;
+  smaller.safety_margin = 0.02;
+  map.configure(smaller);
+  EXPECT_TRUE(map.ready());
+  EXPECT_EQ(map.raw_data(), observed);
+  EXPECT_NEAR(map.hard_radius(), 0.16, 1e-9);
+  EXPECT_TRUE(map.traversable(0.74, 0));
+  smaller.safety_margin = -0.1;
+  EXPECT_THROW(map.configure(smaller), std::invalid_argument);
+  EXPECT_NEAR(map.hard_radius(), 0.16, 1e-9);
+  EXPECT_EQ(map.raw_data(), observed);
+}
+
+TEST(CostmapLiveParameters, SpeedUpdateDoesNotRestartCompletedNavigation) {
+  LocalCostmap map;
+  WallPose pose{6.4, 5.5, 0, 0, 0};
+  std::vector<float> scan(360, std::numeric_limits<float>::infinity());
+  ASSERT_TRUE(map.update(pose, scan, 0, pi / 180, 0.12, 3.5));
+  CostmapFollower controller;
+  controller.step(pose, readings(3.5, 3.5, 3.5), map, 0.05, true);
+  ASSERT_EQ(controller.mode(), LocalMode::complete);
+  LocalPlannerParameters faster;
+  faster.max_speed = 1.2;
+  faster.max_angular = 2.0;
+  controller.configure(faster);
+  const auto command =
+      controller.step(pose, readings(3.5, 3.5, 3.5), map, 0.05, true);
+  EXPECT_EQ(controller.mode(), LocalMode::complete);
+  EXPECT_DOUBLE_EQ(command.linear, 0);
+  faster.heading_stop_angle = pi;
+  EXPECT_THROW(controller.configure(faster), std::invalid_argument);
+  EXPECT_EQ(controller.mode(), LocalMode::complete);
+}
+
+TEST(CostmapPlanner, ReplacesTargetDisconnectedByNewLaserObstacle) {
+  const WallPose pose{0.3, 0, -pi / 2, 0, 0};
+  LocalCostmap map;
+  CostmapFollower controller;
+  ASSERT_TRUE(map.update(pose, wall_scan(pose, 1.0), 0, pi / 180, 0.12, 3.5));
+  const auto sectors = readings(3.5, 0.7, 3.5);
+  controller.step(pose, sectors, map, 0.05, true);
+  ASSERT_GE(controller.reference().size(), 2u);
+  const auto previous_target = controller.reference().back();
+  ASSERT_LT(previous_target.y, -0.7);
+  const std::vector<Shape> obstacles{{1, 0, 0.03, 5, false},
+                                     {0, -0.45, 3, 0.025, false}};
+  std::vector<float> ranges(360, std::numeric_limits<float>::infinity());
+  for (int i = 0; i < 360; ++i) {
+    const double angle = pose.yaw + i * pi / 180;
+    double distance = 100;
+    for (const auto &shape : obstacles)
+      distance =
+          std::min(distance, ray(shape, pose.x - 0.032 * std::cos(pose.yaw),
+                                 pose.y - 0.032 * std::sin(pose.yaw),
+                                 std::cos(angle), std::sin(angle)));
+    if (distance >= 0.12 && distance <= 3.5)
+      ranges[i] = distance;
+  }
+  for (int frame = 0; frame < 3; ++frame)
+    ASSERT_TRUE(map.update(pose, ranges, 0, pi / 180, 0.12, 3.5));
+  ASSERT_TRUE(map.traversable(previous_target.x, previous_target.y));
+  ASSERT_TRUE(map.route({pose.x, pose.y}, previous_target).empty());
+  controller.step(pose, sectors, map, 0.05, true);
+  EXPECT_NE(controller.mode(), LocalMode::blocked);
+  EXPECT_FALSE(controller.trajectory().empty());
+}

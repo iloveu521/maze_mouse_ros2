@@ -13,6 +13,7 @@
 #include <memory>
 #include <sstream>
 #include <thread>
+#include <unordered_map>
 
 namespace maze_mouse_navigation {
 using Clock = std::chrono::steady_clock;
@@ -37,31 +38,24 @@ public:
       return declare_parameter<double>(n, d);
     };
     CostmapParameters m;
-    m.resolution = real("costmap_resolution", m.resolution);
-    m.size = real("costmap_size", m.size);
-    m.robot_radius = real("robot_radius", m.robot_radius);
-    m.safety_margin = real("inflation_margin", m.safety_margin);
-    m.soft_radius = real("soft_cost_radius", m.soft_radius);
-    m.laser_x = real("laser_offset_x", m.laser_x);
-    m.laser_y = real("laser_offset_y", m.laser_y);
-    m.laser_yaw = real("laser_yaw", m.laser_yaw);
+    for (const auto &[name, field] : map_fields_)
+      m.*field = real(name.c_str(), m.*field);
     map_ = std::make_unique<LocalCostmap>(m);
     robot_radius_ = m.robot_radius;
     margin_ = m.safety_margin;
     LocalPlannerParameters p;
-    p.max_speed = real("max_linear_speed", p.max_speed);
-    p.max_angular = real("max_angular_speed", p.max_angular);
-    p.acceleration = real("linear_acceleration", p.acceleration);
-    p.deceleration = real("linear_deceleration", p.deceleration);
-    p.angular_acceleration =
-        real("angular_acceleration", p.angular_acceleration);
-    p.horizon = real("prediction_horizon", p.horizon);
-    p.reaction_time = real("reaction_time", p.reaction_time);
-    p.wall_distance = real("desired_left_distance", p.wall_distance);
-    p.goal_x = real("goal_x", p.goal_x);
-    p.goal_y = real("goal_y", p.goal_y);
-    p.goal_tolerance = real("goal_tolerance", p.goal_tolerance);
+    for (const auto &[name, field] : planner_fields_)
+      p.*field = real(name.c_str(), p.*field);
+    p.linear_samples =
+        declare_parameter<int>("linear_samples", p.linear_samples);
+    p.angular_samples =
+        declare_parameter<int>("angular_samples", p.angular_samples);
+    if (p.wall_distance <= m.robot_radius + m.safety_margin)
+      throw std::invalid_argument(
+          "Wall contour distance must exceed hard inflation radius");
     planner_ = std::make_unique<CostmapFollower>(p);
+    map_parameters_ = m;
+    planner_parameters_ = p;
     start_x_ = real("start_x", 0.5);
     start_y_ = real("start_y", 0.5);
     start_yaw_ = real("start_yaw", 0);
@@ -71,6 +65,57 @@ public:
         !std::isfinite(start_yaw_) || !(timeout_ > 0) ||
         !std::isfinite(timeout_) || !(width_ > 0 && width_ <= pi / 2))
       throw std::invalid_argument("Invalid frame/scan parameters");
+    parameter_callback_ = add_on_set_parameters_callback(
+        [this](const std::vector<rclcpp::Parameter> &parameters) {
+          rcl_interfaces::msg::SetParametersResult result;
+          try {
+            auto m = map_parameters_;
+            auto p = planner_parameters_;
+            for (const auto &parameter : parameters) {
+              const auto &name = parameter.get_name();
+              if (auto field = map_fields_.find(name);
+                  field != map_fields_.end())
+                m.*(field->second) = parameter.as_double();
+              else if (auto field = planner_fields_.find(name);
+                       field != planner_fields_.end())
+                p.*(field->second) = parameter.as_double();
+              else if (name == "linear_samples")
+                p.linear_samples = parameter.as_int();
+              else if (name == "angular_samples")
+                p.angular_samples = parameter.as_int();
+              else if (has_parameter(name) &&
+                       parameter.get_type() == get_parameter(name).get_type() &&
+                       parameter.value_to_string() ==
+                           get_parameter(name).value_to_string())
+                continue;
+              else
+                throw std::invalid_argument(
+                    "Parameter requires restarting node: " + name);
+            }
+            LocalCostmap checked_map(m);
+            CostmapFollower checked_planner(p);
+            if (p.wall_distance <= m.robot_radius + m.safety_margin)
+              throw std::invalid_argument(
+                  "Wall contour distance must exceed hard inflation radius");
+            map_->configure(m);
+            valid_map_ = map_->ready();
+            planner_->configure(p);
+            map_parameters_ = m;
+            planner_parameters_ = p;
+            robot_radius_ = m.robot_radius;
+            margin_ = m.safety_margin;
+            ++parameter_updates_;
+            RCLCPP_INFO(
+                get_logger(),
+                "Parameters updated: v=%.2f w=%.2f margin=%.3f horizon=%.2f",
+                p.max_speed, p.max_angular, m.safety_margin, p.horizon);
+            result.successful = true;
+          } catch (const std::exception &error) {
+            result.successful = false;
+            result.reason = error.what();
+          }
+          return result;
+        });
     command_pub_ = create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
     sectors_pub_ = create_publisher<geometry_msgs::msg::Vector3Stamped>(
         "maze_mouse/sectors", 10);
@@ -219,6 +264,9 @@ private:
     max_computation_ms_ = std::max(max_computation_ms_, computation_ms_);
     publish_command(command);
     max_command_ = std::max(max_command_, command.linear);
+    if (running_ && planner_->mode() != LocalMode::complete &&
+        std::abs(pose_.linear_speed) < 0.03)
+      stopped_seconds_ += dt;
     const std::string state =
         !fault_.empty()
             ? "FAULT"
@@ -264,6 +312,11 @@ private:
         << ",\"command_angular\":" << number(command.angular)
         << ",\"max_command_speed\":" << number(max_command_)
         << ",\"max_measured_speed\":" << number(max_measured_)
+        << ",\"configured_max_speed\":" << number(planner_parameters_.max_speed)
+        << ",\"configured_max_angular\":"
+        << number(planner_parameters_.max_angular)
+        << ",\"parameter_updates\":" << parameter_updates_
+        << ",\"stopped_sim_s\":" << number(stopped_seconds_)
         << ",\"robot_radius\":" << number(robot_radius_)
         << ",\"inflation_margin\":" << number(margin_)
         << ",\"hard_inflation_radius\":" << number(map_->hard_radius())
@@ -285,6 +338,47 @@ private:
     s.data = out.str();
     status_pub_->publish(s);
   }
+  const std::unordered_map<std::string, double CostmapParameters::*>
+      map_fields_{{"costmap_resolution", &CostmapParameters::resolution},
+                  {"costmap_size", &CostmapParameters::size},
+                  {"robot_radius", &CostmapParameters::robot_radius},
+                  {"inflation_margin", &CostmapParameters::safety_margin},
+                  {"soft_cost_radius", &CostmapParameters::soft_radius},
+                  {"laser_offset_x", &CostmapParameters::laser_x},
+                  {"laser_offset_y", &CostmapParameters::laser_y},
+                  {"laser_yaw", &CostmapParameters::laser_yaw}};
+  const std::unordered_map<std::string, double LocalPlannerParameters::*>
+      planner_fields_{
+          {"max_linear_speed", &LocalPlannerParameters::max_speed},
+          {"max_angular_speed", &LocalPlannerParameters::max_angular},
+          {"linear_acceleration", &LocalPlannerParameters::acceleration},
+          {"linear_deceleration", &LocalPlannerParameters::deceleration},
+          {"angular_acceleration",
+           &LocalPlannerParameters::angular_acceleration},
+          {"prediction_horizon", &LocalPlannerParameters::horizon},
+          {"reaction_time", &LocalPlannerParameters::reaction_time},
+          {"desired_left_distance", &LocalPlannerParameters::wall_distance},
+          {"target_lookahead", &LocalPlannerParameters::target_lookahead},
+          {"target_tolerance", &LocalPlannerParameters::target_tolerance},
+          {"wall_target_offset", &LocalPlannerParameters::wall_offset},
+          {"recovery_enter_margin", &LocalPlannerParameters::recovery_enter},
+          {"recovery_exit_margin", &LocalPlannerParameters::recovery_exit},
+          {"recovery_speed", &LocalPlannerParameters::recovery_speed},
+          {"heading_stop_angle", &LocalPlannerParameters::heading_stop_angle},
+          {"progress_weight", &LocalPlannerParameters::progress_weight},
+          {"path_weight", &LocalPlannerParameters::path_weight},
+          {"heading_weight", &LocalPlannerParameters::heading_weight},
+          {"clearance_weight", &LocalPlannerParameters::clearance_weight},
+          {"speed_weight", &LocalPlannerParameters::speed_weight},
+          {"goal_x", &LocalPlannerParameters::goal_x},
+          {"goal_y", &LocalPlannerParameters::goal_y},
+          {"goal_tolerance", &LocalPlannerParameters::goal_tolerance}};
+  CostmapParameters map_parameters_;
+  LocalPlannerParameters planner_parameters_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
+      parameter_callback_;
+  std::uint64_t parameter_updates_{};
+  double stopped_seconds_{};
   std::unique_ptr<LocalCostmap> map_;
   std::unique_ptr<CostmapFollower> planner_;
   WallPose pose_{};

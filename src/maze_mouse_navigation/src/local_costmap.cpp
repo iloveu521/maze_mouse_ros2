@@ -51,6 +51,16 @@ LocalCostmap::LocalCostmap(CostmapParameters p) : p_(p) {
   seen_.assign(n_ * n_, false);
   distance_.assign(n_ * n_, 0);
 }
+void LocalCostmap::configure(CostmapParameters p) {
+  LocalCostmap checked(p);
+  const bool reset = p.resolution != p_.resolution || p.size != p_.size ||
+                     p.laser_x != p_.laser_x || p.laser_y != p_.laser_y ||
+                     p.laser_yaw != p_.laser_yaw;
+  if (reset)
+    *this = std::move(checked);
+  else
+    p_ = p;
+}
 int LocalCostmap::index(double x, double y) const {
   if (!std::isfinite(x) || !std::isfinite(y))
     return -1;
@@ -480,15 +490,31 @@ const char *local_mode_name(LocalMode m) {
 }
 CostmapFollower::CostmapFollower(LocalPlannerParameters p) : p_(p) {
   const std::array values{
-      p.max_speed,     p.max_angular,          p.acceleration,
-      p.deceleration,  p.angular_acceleration, p.horizon,
-      p.wall_distance, p.goal_tolerance};
+      p.max_speed,        p.max_angular,          p.acceleration,
+      p.deceleration,     p.angular_acceleration, p.horizon,
+      p.wall_distance,    p.goal_tolerance,       p.target_lookahead,
+      p.target_tolerance, p.recovery_speed,       p.heading_stop_angle,
+      p.progress_weight,  p.path_weight,          p.heading_weight,
+      p.clearance_weight, p.speed_weight};
   if (!std::all_of(values.begin(), values.end(),
                    [](double v) { return std::isfinite(v) && v > 0; }) ||
       !std::isfinite(p.reaction_time) || p.reaction_time < 0 ||
-      p.horizon <= p.reaction_time || !std::isfinite(p.goal_x) ||
+      p.horizon <= p.reaction_time || p.heading_stop_angle >= pi / 2 ||
+      p.linear_samples < 2 || p.linear_samples > 40 || p.angular_samples < 8 ||
+      p.angular_samples > 120 || !std::isfinite(p.wall_offset) ||
+      p.wall_offset < 0 || !std::isfinite(p.recovery_enter) ||
+      p.recovery_enter < 0 || !std::isfinite(p.recovery_exit) ||
+      p.recovery_exit <= p.recovery_enter || !std::isfinite(p.goal_x) ||
       !std::isfinite(p.goal_y))
     throw std::invalid_argument("Invalid local planner parameters");
+}
+void CostmapFollower::configure(LocalPlannerParameters p) {
+  CostmapFollower checked(p);
+  if (p.wall_distance != p_.wall_distance ||
+      p.target_lookahead != p_.target_lookahead ||
+      p.wall_offset != p_.wall_offset)
+    have_target_ = false;
+  p_ = p;
 }
 WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
                                   const LocalCostmap &map, double dt,
@@ -517,9 +543,9 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     mode_ = LocalMode::blocked;
     return {};
   }
-  if (initial_clearance < map.hard_radius() + 0.04)
+  if (initial_clearance < map.hard_radius() + p_.recovery_enter)
     recovering_ = true;
-  if (initial_clearance > map.hard_radius() + 0.075)
+  if (initial_clearance > map.hard_radius() + p_.recovery_exit)
     recovering_ = false;
   std::vector<WallPoint> reference;
   if (recovering_) {
@@ -546,14 +572,21 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     mode_ = LocalMode::following;
     // Hold a laser-derived local target until reached. Re-selecting it at
     // every scan can alternate between both sides of a dead end.
-    if (have_target_ &&
-        std::hypot(target_.x - pose.x, target_.y - pose.y) < 0.18) {
+    if (have_target_ && std::hypot(target_.x - pose.x, target_.y - pose.y) <
+                            p_.target_tolerance) {
       anchor_ = target_anchor_;
       have_anchor_ = true;
       have_target_ = false;
     }
     if (have_target_ && !map.traversable(target_.x, target_.y))
       have_target_ = false;
+    if (have_target_) {
+      reference = map.route({pose.x, pose.y}, target_);
+      // Rolling observations can disconnect a previously free target.
+      // Re-select a reachable target rather than waiting indefinitely.
+      if (reference.size() < 2)
+        have_target_ = false;
+    }
     if (!have_target_) {
       const auto boundary =
           map.boundary_path(pose, p_.wall_distance, anchor_, have_anchor_);
@@ -561,7 +594,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
       for (std::size_t i = 1; i < boundary.size(); ++i) {
         arc += std::hypot(boundary[i].x - boundary[i - 1].x,
                           boundary[i].y - boundary[i - 1].y);
-        if (arc < 0.85)
+        if (arc < p_.target_lookahead)
           continue;
         WallPoint target = boundary[i];
         const auto before = boundary[i > 2 ? i - 2 : 0];
@@ -570,8 +603,8 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
             std::hypot(after.x - before.x, after.y - before.y);
         if (length > 1e-6) {
           const WallPoint shifted{
-              target.x + 0.10 * (after.y - before.y) / length,
-              target.y - 0.10 * (after.x - before.x) / length};
+              target.x + p_.wall_offset * (after.y - before.y) / length,
+              target.y - p_.wall_offset * (after.x - before.x) / length};
           if (map.traversable(shifted.x, shifted.y))
             target = shifted;
         }
@@ -584,8 +617,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         reference = std::move(route);
         break;
       }
-    } else
-      reference = map.route({pose.x, pose.y}, target_);
+    }
   }
   if (reference.size() < 2) {
     mode_ = LocalMode::blocked;
@@ -627,9 +659,10 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
       wrap_angle(projection(pose.x, pose.y)[2] - pose.yaw);
   dt = std::clamp(dt, 0.01, 0.1);
   const double upper_v =
-      std::abs(heading_error) > 0.8
+      std::abs(heading_error) > p_.heading_stop_angle
           ? 0
-          : (recovering_ ? std::min(0.15, p_.max_speed) : p_.max_speed) *
+          : (recovering_ ? std::min(p_.recovery_speed, p_.max_speed)
+                         : p_.max_speed) *
                 std::pow(std::cos(heading_error), 2);
   std::vector<double> rotations{
       0, std::clamp(1.8 * heading_error - 0.2 * pose.angular_speed,
@@ -638,13 +671,14 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
       std::clamp(wrap_angle(projection(pose.x, pose.y)[2] - pose.yaw) /
                      std::max(0.5, p_.horizon - p_.reaction_time),
                  -p_.max_angular, p_.max_angular));
-  for (int i = 0; i <= 30; ++i)
-    rotations.push_back(-p_.max_angular + 2 * p_.max_angular * i / 30);
+  for (int i = 0; i <= p_.angular_samples; ++i)
+    rotations.push_back(-p_.max_angular +
+                        2 * p_.max_angular * i / p_.angular_samples);
   double best = 1e30;
   WallCommand chosen{};
-  for (int vi = 0; vi <= 6; ++vi)
+  for (int vi = 0; vi <= p_.linear_samples; ++vi)
     for (const double w : rotations) {
-      const double v = upper_v * vi / 6;
+      const double v = upper_v * vi / p_.linear_samples;
       WallPose predicted = pose;
       double clearance = 100, penalty = 0;
       bool valid = true;
@@ -690,11 +724,14 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         ++moving_candidates_;
       const auto end = projection(predicted.x, predicted.y);
       const double score =
-          -3 * std::min(end[1], 1.0) + 2 * end[0] +
-          0.8 * std::abs(wrap_angle(end[2] - predicted.yaw)) +
+          -p_.progress_weight * std::min(end[1], 1.0) +
+          p_.path_weight * end[0] +
+          p_.heading_weight * std::abs(wrap_angle(end[2] - predicted.yaw)) +
           0.5 * penalty / path.size() +
-          4.0 * std::exp(-40 * (clearance - map.hard_radius())) +
-          0.5 * (p_.max_speed - v) + 0.04 * std::abs(w - pose.angular_speed);
+          p_.clearance_weight *
+              std::exp(-40 * (clearance - map.hard_radius())) +
+          p_.speed_weight * (p_.max_speed - v) +
+          0.04 * std::abs(w - pose.angular_speed);
       if (score < best) {
         best = score;
         chosen = {v, w};

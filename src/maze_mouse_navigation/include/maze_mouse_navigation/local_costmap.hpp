@@ -14,6 +14,7 @@ struct CostmapParameters {
 class LocalCostmap {
 public:
   explicit LocalCostmap(CostmapParameters parameters = {});
+  void configure(CostmapParameters parameters);
   bool update(const WallPose &pose, std::span<const float> ranges,
               double angle_min, double increment, double range_min,
               double range_max);
@@ -50,8 +51,14 @@ private:
 
 struct LocalPlannerParameters {
   double max_speed{0.5}, max_angular{0.9};
+  int linear_samples{6}, angular_samples{30};
   double acceleration{0.8}, deceleration{1.0}, angular_acceleration{1.5};
   double horizon{1.5}, reaction_time{0.20}, wall_distance{0.30};
+  double target_lookahead{0.85}, target_tolerance{0.18}, wall_offset{0.10};
+  double recovery_enter{0.04}, recovery_exit{0.075}, recovery_speed{0.15};
+  double heading_stop_angle{0.8};
+  double progress_weight{3.0}, path_weight{2.0}, heading_weight{0.8};
+  double clearance_weight{4.0}, speed_weight{0.5};
   double goal_x{6.45}, goal_y{5.5}, goal_tolerance{0.14};
 };
 enum class LocalMode { following, recovering, exiting, complete, blocked };
@@ -59,6 +66,7 @@ const char *local_mode_name(LocalMode mode);
 class CostmapFollower {
 public:
   explicit CostmapFollower(LocalPlannerParameters parameters = {});
+  void configure(LocalPlannerParameters parameters);
   WallCommand step(const WallPose &pose, const Sectors &sectors,
                    const LocalCostmap &map, double dt, bool fresh);
   const std::vector<WallPoint> &trajectory() const { return best_path_; }
