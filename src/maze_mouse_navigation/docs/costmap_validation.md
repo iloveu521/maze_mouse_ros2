@@ -1,6 +1,6 @@
 # 激光 costmap 连续左墙控制验证
 
-2026-11-01，ROS 2 Humble、Gazebo Classic 11、TurtleBot3 Burger、CMake 3.22.1、C++20。配置为 `config/costmap.yaml`，默认控制器 `costmap_follower`。
+2026-11-01，ROS 2 Humble、Gazebo Classic 11、TurtleBot3 Burger、CMake 3.22.1、C++20。本页保留提速前 0.5 m/s、额外膨胀 0.10 m 的历史基线，配置现保存在 `config/costmap_conservative.yaml`。最新默认配置与 Gazebo 复测见 [调参记录](speed_tuning/README.md)。
 
 ## 自动检查
 
@@ -26,7 +26,7 @@
 使用实际 `/scan`、`/odom`，默认参数与未修改的 Burger 模型，无界面启动命令：
 
 ```zsh
-ALSOFT_DRIVERS=null ros2 launch maze_mouse_navigation navigation.launch.py gui:=false rviz:=false
+ALSOFT_DRIVERS=null ros2 launch maze_mouse_navigation navigation.launch.py gui:=false rviz:=false params:=$PWD/src/maze_mouse_navigation/config/costmap_conservative.yaml
 ```
 
 `ALSOFT_DRIVERS=null` 仅避免无声卡环境的音频初始化等待，不修改控制器、雷达或物理参数。

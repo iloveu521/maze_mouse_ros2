@@ -1,0 +1,38 @@
+{
+  "2": {
+    "minimum_center_wall_distance_from_odometry_m": 0.2314703081475376,
+    "estimated_body_wall_gap_m": 0.0914703081475376
+  },
+  "3": {
+    "minimum_center_wall_distance_from_odometry_m": 0.2212505298770427,
+    "estimated_body_wall_gap_m": 0.08125052987704268
+  },
+  "4": {
+    "minimum_center_wall_distance_from_odometry_m": 0.1422351890326915,
+    "estimated_body_wall_gap_m": 0.002235189032691487
+  },
+  "5": {
+    "minimum_center_wall_distance_from_odometry_m": 0.238359463392534,
+    "estimated_body_wall_gap_m": 0.09835946339253399
+  },
+  "6": {
+    "minimum_center_wall_distance_from_odometry_m": 0.2402386591728592,
+    "estimated_body_wall_gap_m": 0.10023865917285918
+  },
+  "7": {
+    "minimum_center_wall_distance_from_odometry_m": 0.2441988834510243,
+    "estimated_body_wall_gap_m": 0.1041988834510243
+  },
+  "8": {
+    "minimum_center_wall_distance_from_odometry_m": 0.22737325049438956,
+    "estimated_body_wall_gap_m": 0.08737325049438954
+  },
+  "9": {
+    "minimum_center_wall_distance_from_odometry_m": 0.23972010185905995,
+    "estimated_body_wall_gap_m": 0.09972010185905994
+  },
+  "10": {
+    "minimum_center_wall_distance_from_odometry_m": 0.23988644160567857,
+    "estimated_body_wall_gap_m": 0.09988644160567856
+  }
+}

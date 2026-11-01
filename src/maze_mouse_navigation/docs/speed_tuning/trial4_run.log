@@ -1,0 +1,22 @@
+[INFO] [1793529525.985191437] [maze_navigator]: C++20 laser costmap: body radius 0.140 + margin 0.030 = 0.170 m; target 1.50 m/s; no maze-cell centres
+[INFO] [1793529526.037485111] [maze_navigator]: WAITING pose=(0.000,0.000,0.000), costmap clearance=0.000
+[INFO] [1793529529.312145179] [maze_navigator]: FOLLOW_COSTMAP pose=(0.500,0.500,0.000), costmap clearance=0.373
+[INFO] [1793529535.805841597] [maze_navigator]: WAIT_FOR_DATA pose=(1.610,1.316,-2.614), costmap clearance=0.206
+[INFO] [1793529537.860626135] [maze_navigator]: FOLLOW_COSTMAP pose=(1.593,1.307,-2.667), costmap clearance=0.199
+[INFO] [1793529538.578897745] [maze_navigator]: WAIT_FOR_DATA pose=(1.580,1.301,-2.724), costmap clearance=0.193
+[INFO] [1793529539.042062308] [maze_navigator]: FOLLOW_COSTMAP pose=(1.566,1.295,-2.847), costmap clearance=0.188
+[INFO] [1793529542.635929328] [maze_navigator]: BLOCKED pose=(0.979,1.704,2.571), costmap clearance=0.189
+[INFO] [1793529542.687375454] [maze_navigator]: FOLLOW_COSTMAP pose=(0.966,1.712,2.643), costmap clearance=0.182
+[INFO] [1793529542.738921604] [maze_navigator]: RECOVER_CLEARANCE pose=(0.961,1.714,2.678), costmap clearance=0.179
+[INFO] [1793529543.669385840] [maze_navigator]: FOLLOW_COSTMAP pose=(0.900,1.701,-2.399), costmap clearance=0.203
+[INFO] [1793529544.917382180] [maze_navigator]: BLOCKED pose=(0.850,1.754,-1.603), costmap clearance=0.178
+[INFO] [1793529545.126238782] [maze_navigator]: RECOVER_CLEARANCE pose=(0.850,1.771,-1.605), costmap clearance=0.165
+[INFO] [1793529545.542360730] [maze_navigator]: FOLLOW_COSTMAP pose=(0.847,1.705,-1.628), costmap clearance=0.207
+[INFO] [1793529559.226946025] [maze_navigator]: BLOCKED pose=(0.648,4.842,1.067), costmap clearance=0.225
+[INFO] [1793529559.331717580] [maze_navigator]: FOLLOW_COSTMAP pose=(0.675,4.901,1.168), costmap clearance=0.200
+[INFO] [1793529559.435284048] [maze_navigator]: RECOVER_CLEARANCE pose=(0.695,4.960,1.274), costmap clearance=0.180
+[INFO] [1793529559.747792219] [maze_navigator]: FOLLOW_COSTMAP pose=(0.719,5.127,1.603), costmap clearance=0.206
+[INFO] [1793529567.144574455] [maze_navigator]: WAIT_FOR_DATA pose=(1.612,4.660,-0.458), costmap clearance=0.251
+[INFO] [1793529568.602294297] [maze_navigator]: FOLLOW_COSTMAP pose=(1.616,4.659,-0.337), costmap clearance=0.252
+[INFO] [1793529570.890396719] [maze_navigator]: BLOCKED pose=(1.458,5.087,2.456), costmap clearance=0.352
+[INFO] [1793529586.549701990] [maze_navigator]: FAULT pose=(1.073,5.221,-2.171), costmap clearance=0.110

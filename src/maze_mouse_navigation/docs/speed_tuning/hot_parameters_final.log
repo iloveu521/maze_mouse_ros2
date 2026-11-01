@@ -1,0 +1,47 @@
+$ ros2 param set /maze_navigator max_linear_speed 1.0
+Set parameter successful
+exit_status=0
+$ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
+Set parameter use_sim_time successful
+Set parameter start_x successful
+Set parameter start_y successful
+Set parameter start_yaw successful
+Set parameter goal_x successful
+Set parameter goal_y successful
+Set parameter goal_tolerance successful
+Set parameter max_linear_speed successful
+Set parameter max_angular_speed successful
+Set parameter linear_acceleration successful
+Set parameter linear_deceleration successful
+Set parameter angular_acceleration successful
+Set parameter prediction_horizon successful
+Set parameter reaction_time successful
+Set parameter desired_left_distance successful
+Set parameter sector_width_deg successful
+Set parameter data_timeout successful
+Set parameter costmap_resolution successful
+Set parameter costmap_size successful
+Set parameter robot_radius successful
+Set parameter inflation_margin successful
+Set parameter soft_cost_radius successful
+Set parameter laser_offset_x successful
+Set parameter laser_offset_y successful
+Set parameter laser_yaw successful
+Set parameter recovery_enter_margin successful
+Set parameter recovery_exit_margin successful
+Set parameter recovery_speed successful
+Set parameter heading_stop_angle successful
+Set parameter target_lookahead successful
+Set parameter target_tolerance successful
+Set parameter wall_target_offset successful
+Set parameter clearance_weight successful
+Set parameter progress_weight successful
+Set parameter path_weight successful
+Set parameter heading_weight successful
+Set parameter speed_weight successful
+Set parameter linear_samples successful
+Set parameter angular_samples successful
+exit_status=0
+$ ros2 param set /maze_navigator inflation_margin -0.1
+Setting parameter failed: Invalid local costmap parameters
+exit_status=0

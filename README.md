@@ -6,7 +6,7 @@
 
 - `maps/`：老师提供的原始世界文件，保持原样。
 - `src/maze_mouse_gazebo/`：约 6×6 米的 6×6 单元迷宫、Gazebo/TurtleBot3/RViz2 启动文件及地图生成和校验工具。
-- `src/maze_mouse_navigation/`：C++20 雷达局部 costmap、墙体膨胀与连续左墙跟随；速度上限 0.5 m/s，转弯不绑定迷宫栅格中心。
+- `src/maze_mouse_navigation/`：C++20 雷达局部 costmap、墙体膨胀与连续左墙跟随；支持运行中调速，转弯不绑定迷宫栅格中心。
 
 [完整使用说明](src/maze_mouse_gazebo/README.md) · [地图俯视设计图](src/maze_mouse_gazebo/docs/maze_6x6.svg) · [参考通路](src/maze_mouse_gazebo/docs/maze_6x6_solution.svg)
 
@@ -32,4 +32,4 @@ source install/setup.zsh
 ros2 launch maze_mouse_navigation navigation.launch.py
 ```
 
-算法说明、参数和状态话题见 [导航功能包说明](src/maze_mouse_navigation/README.md)。默认控制器将实际雷达墙体按车体半径 0.14 m 加额外 0.10 m 间隙膨胀，使用局部路径与预测轨迹连续转弯；不加载预设路线或执行全局泛洪搜索。旧路口停车左墙控制器和泛洪控制器分别通过 `controller:=left_wall_follower`、`controller:=maze_navigator` 对照运行。
+算法说明、参数和状态话题见 [导航功能包说明](src/maze_mouse_navigation/README.md)。默认控制器将实际雷达墙体按车体半径 0.14 m 加额外 0.04 m 间隙膨胀，使用局部路径与预测轨迹连续转弯；不加载预设路线或执行全局泛洪搜索。参数选择及整图 Gazebo 实测见 [调参记录](src/maze_mouse_navigation/docs/speed_tuning/README.md)。旧路口停车左墙控制器和泛洪控制器分别通过 `controller:=left_wall_follower`、`controller:=maze_navigator` 对照运行。

@@ -1,6 +1,6 @@
 # 雷达局部 costmap 与连续左墙跟随
 
-默认控制器 `costmap_follower` 使用 **C++20、CMake 3.22**。输入是 `/scan` 和 `/odom`，直行速度上限 **0.5 m/s**。转弯位置由扫描到的墙体和预测轨迹决定，不要求到达迷宫单元中心或停稳后再转弯。
+默认控制器 `costmap_follower` 使用 **C++20、CMake 3.22**。输入是 `/scan` 和 `/odom`，速度及轨迹评分参数支持运行中修改。转弯位置由扫描到的墙体和预测轨迹决定，不要求到达迷宫单元中心或停稳后再转弯。
 
 ```zsh
 source /opt/ros/humble/setup.zsh
@@ -17,34 +17,59 @@ Bash 使用 `setup.bash`。无界面追加 `gui:=false rviz:=false`；已有仿�
 
 扫描点按激光安装偏移和里程计转换到局部固定坐标，射线清除可见自由空间，命中点累积占据证据；地图随车辆滚动，重叠区域保留。未知区域不参与正常路径规划。
 
-墙体膨胀包含 **车体包络半径 0.14 m + 额外间隙 0.10 m = 0.24 m**，而不是仅把点状车辆与墙隔开 0.10 m。欧氏距离场生成硬障碍区和渐变软代价；离散化与距离插值额外采用保守补偿。
+墙体膨胀包含 **车体包络半径 0.14 m + 额外间隙 0.04 m = 0.18 m**。软代价范围从 0.55 m 缩至 0.38 m，地图分辨率从 0.05 m 改为 0.04 m。0.88 m 通道内，扣除两侧硬膨胀后供车体中心选择的名义宽度从 0.40 m 增至 0.52 m；离散化与距离插值仍额外采用保守补偿。
 
 ## 连续控制
 
-1. 沿扫描墙体的偏置轮廓选取左墙方向的局部目标，保持轮廓方向及目标连续性，避免在死胡同两侧来回切换。控制器不加载 world、迷宫连通图或预设解答。
-2. 在局部 costmap 上使用 A* 为这个局部目标绕开障碍，再检查并简化路径。这里的 5 cm 网格只是障碍表示精度，不是 1 m 迷宫单元，也不要求车辆逐点停靠。
+1. 沿扫描墙体的偏置轮廓选取左墙方向的局部目标，保持轮廓方向及目标连续性，避免在死胡同两侧来回切换。新扫描使原目标不可达时立即重选可达目标，避免持续等待同一目标。控制器不加载 world、迷宫连通图或预设解答。
+2. 在局部 costmap 上使用 A* 为这个局部目标绕开障碍，再检查并简化路径。这里的 4 cm 网格只是障碍表示精度，不是 1 m 迷宫单元，也不要求车辆逐点停靠。
 3. 采样线速度与角速度组合，预测加减速、执行延迟及停车过程，剔除碰撞轨迹，再按前进进度、路径偏差、航向和墙边代价选取速度。转弯中可以同时前进和转向。
 4. 车辆接近膨胀区时进入 `RECOVER_CLEARANCE`，低速朝更宽敞方向恢复间隙。新扫描使当前位置浅度落入膨胀边缘时，只允许不再深入的脱离轨迹；深度重叠和未知位置停车。
 5. 朝向偏差大、死胡同回转或无可行弧线时可以停车旋转，停车位置不与迷宫栅格中心绑定。雷达无效、数据过期立即输出零速度；持续 15 秒无平移进入 `FAULT`。到达配置出口后停车。
 
-这是左墙策略加局部避障，不执行全局泛洪搜索，不保证最短路。当前版本用里程计维护局部地图，未接入 SLAM 或全局定位，长时间累计漂移仍会影响出口判定。0.5 m/s 为当前 Gazebo 实验配置。
+这是左墙策略加局部避障，不执行全局泛洪搜索，不保证最短路。当前版本用里程计维护局部地图，未接入 SLAM 或全局定位，长时间累计漂移仍会影响出口判定。速度上限是指令约束，实际速度和完成时间分别由 Gazebo 里程计及状态话题记录，见 [完整调参记录](docs/speed_tuning/README.md)。
 
 ## 参数
 
 默认配置见 [costmap.yaml](config/costmap.yaml)，启动时可用 `params:=绝对路径` 替换。
 
+保留原来的 0.5 m/s、0.10 m 额外膨胀配置用于对照：
+
+```zsh
+ros2 launch maze_mouse_navigation navigation.launch.py params:=$PWD/src/maze_mouse_navigation/config/costmap_conservative.yaml
+```
+
+运行中修改示例（单位 m/s、rad/s、m）：
+
+```zsh
+ros2 param set /maze_navigator max_linear_speed 1.0
+ros2 param set /maze_navigator max_angular_speed 1.8
+ros2 param set /maze_navigator inflation_margin 0.04
+ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
+```
+
+速度、运动模型、膨胀、局部目标、采样数量及评分权重均可热更新。速度和膨胀修改保留已有地图与完成状态；修改地图尺寸、分辨率或雷达外参会清空地图，等待下一帧有效扫描。起点坐标、扇区宽度和超时只能重启修改。参数先校验再应用，拒绝负余量等非法设置；YAML 使用完整节点名 `/maze_navigator`，可同时用于 launch 和 `ros2 param load`。相互约束的参数需要通过原子参数服务一起修改。
+
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
-| `max_linear_speed` | 0.5 m/s | 线速度上限；转弯和避障时自动降低 |
-| `max_angular_speed` | 0.9 rad/s | 角速度上限 |
-| `costmap_resolution` / `costmap_size` | 0.05 m / 4.0 m | 滚动地图精度与边长 |
+| `max_linear_speed` | 1.2 m/s | 线速度上限；转弯和避障时自动降低 |
+| `max_angular_speed` | 2.0 rad/s | 角速度上限 |
+| `costmap_resolution` / `costmap_size` | 0.04 m / 4.0 m | 滚动地图精度与边长 |
 | `robot_radius` | 0.14 m | 车体圆形包络半径 |
-| `inflation_margin` | 0.10 m | 在车体之外增加的墙边间隙 |
-| `soft_cost_radius` | 0.55 m | 渐变墙边代价的范围 |
-| `desired_left_distance` | 0.30 m | 用于追踪左墙方向的偏置轮廓；非强制行驶距离 |
-| `prediction_horizon` / `reaction_time` | 1.5 s / 0.20 s | 轨迹预测与延迟预算 |
+| `inflation_margin` | 0.04 m | 在车体之外增加的墙边间隙 |
+| `soft_cost_radius` | 0.38 m | 渐变墙边代价的范围 |
+| `desired_left_distance` | 0.28 m | 用于追踪左墙方向的偏置轮廓；非强制行驶距离 |
+| `prediction_horizon` / `reaction_time` | 0.75 s / 0.20 s | 轨迹预测与延迟预算 |
 | `linear_acceleration` / `linear_deceleration` | 0.8 / 1.0 m/s² | 预测模型的加减速能力 |
-| `angular_acceleration` | 1.5 rad/s² | 预测模型的角加速度 |
+| `angular_acceleration` | 3.0 rad/s² | 预测模型的角加速度 |
+| `target_lookahead` / `target_tolerance` | 1.05 m / 0.20 m | 轮廓前瞻弧长及局部目标到达容差 |
+| `wall_target_offset` | 0.10 m | 将局部目标向墙外偏移的距离 |
+| `recovery_enter_margin` / `recovery_exit_margin` | 0.015 / 0.035 m | 在硬膨胀半径之外的恢复模式进入/退出门限 |
+| `recovery_speed` | 0.30 m/s | 恢复间隙时的速度上限 |
+| `heading_stop_angle` | 1.20 rad | 超过此路径航向偏差时原地转向 |
+| `linear_samples` / `angular_samples` | 6 / 30 | 速度采样区间数，另包含边界及引导角速度 |
+| `progress_weight` / `path_weight` / `heading_weight` | 4.0 / 1.5 / 0.7 | 前进、路径偏差与航向评分权重 |
+| `clearance_weight` / `speed_weight` | 3.0 / 1.0 | 近墙惩罚与速度偏好权重 |
 | `laser_offset_x` | -0.032 m | Burger 激光相对车体中心的纵向偏移 |
 | `sector_width_deg` / `data_timeout` | 30° / 0.7 s | 扇区宽度与传感器超时 |
 
@@ -68,7 +93,7 @@ colcon test --packages-select maze_mouse_gazebo maze_mouse_navigation
 colcon test-result --verbose
 ```
 
-测试读取实际 world 碰撞几何，用 5 Hz 射线扫描和执行器延迟检查完整跑图、移动中转弯及墙边间隙。它与 Gazebo 动力学实测分别记录在 [costmap 验证](docs/costmap_validation.md)，可查看[实际轨迹与膨胀地图](docs/costmap_run.svg)。
+29 项自动检查包括地图、旧控制器、局部 costmap 整图回归、热更新保留地图、完成状态保持，以及新障碍隔断旧目标后的重新选路。整图回归使用简化运动模型；提速参数直接在 Gazebo 运行整图选择，结果见 [调参记录](docs/speed_tuning/README.md)。[原 0.5 m/s 验证](docs/costmap_validation.md)及其[轨迹图](docs/costmap_run.svg)保留作为历史基线。
 
 实现：[local_costmap.hpp](include/maze_mouse_navigation/local_costmap.hpp)、[local_costmap.cpp](src/local_costmap.cpp)、[costmap_node.cpp](src/costmap_node.cpp)。Python launch 只编排进程。
 

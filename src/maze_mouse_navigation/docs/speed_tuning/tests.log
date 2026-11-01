@@ -1,0 +1,7 @@
+Starting >>> maze_mouse_gazebo
+Finished <<< maze_mouse_gazebo [0.40s]
+Starting >>> maze_mouse_navigation
+Finished <<< maze_mouse_navigation [6.14s]
+
+Summary: 2 packages finished [6.91s]
+Summary: 29 tests, 0 errors, 0 failures, 0 skipped
