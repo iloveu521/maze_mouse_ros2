@@ -1,0 +1,2 @@
+data: '{"algorithm":"left_wall","state":"FAULT","data_ready":true,"pose":[1.8031103,3.03886648,-2.74857196],"front":0.840846921,"left":1.06459032,"right":0.969955379,"command_speed":0,"max_command_speed":0.5,"max_measured_speed":0.502017429,"left_turns":5,"right_turns":4,"u_turns":1,"odom_distance_m":17.2717983,"minimum_laser_range_m":0.119999997,"elapsed_sim_s":72.7,"reason":"Measured obstacle clearance below stop distance"}'
+---

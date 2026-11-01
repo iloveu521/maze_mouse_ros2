@@ -1,0 +1,2 @@
+[INFO] [1793520306.336722865] [maze_navigator]: C++20 left-wall follower: straight target 0.50 m/s, arc 0.24 m/s, no flood planning
+[INFO] [1793520315.812266995] [maze_navigator]: TURN_LEFT: pose=(2.233,0.546,0.027), left=1.396 front=3.472 right=0.486

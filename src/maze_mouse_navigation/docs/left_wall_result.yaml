@@ -1,0 +1,2 @@
+data: '{"algorithm":"left_wall","state":"COMPLETE","data_ready":true,"pose":[6.31762781,5.4873766,0.0965251706],"front":3.47379273,"left":3.47224136,"right":3.47082234,"command_speed":0,"max_command_speed":0.5,"max_measured_speed":0.508438163,"left_turns":11,"right_turns":7,"u_turns":2,"odom_distance_m":30.3677936,"minimum_laser_range_m":0.306556642,"elapsed_sim_s":212.8,"reason":"Reached exit target"}'
+---

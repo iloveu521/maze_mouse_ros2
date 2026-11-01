@@ -42,7 +42,7 @@ Visualization Manager:
       Color Transformer: FlatColor
       Color: 70; 220; 180
     - Class: rviz_default_plugins/Path
-      Name: Flood Fill Candidate Path
+      Name: Reference Path
       Enabled: true
       Topic:
         Value: /maze_mouse/path

@@ -2,7 +2,7 @@
 <package format="3">
   <name>maze_mouse_navigation</name>
   <version>0.1.0</version>
-  <description>C++20 laser-centred navigation and online flood-fill planning for a grid maze.</description>
+  <description>C++20 left-wall following with a legacy flood-fill comparison controller.</description>
   <maintainer email="maintainer@example.com">Maze Mouse Project</maintainer>
   <license>Apache-2.0</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -16,5 +16,6 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>maze_mouse_gazebo</exec_depend>
   <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>tinyxml2_vendor</test_depend>
   <export><build_type>ament_cmake</build_type></export>
 </package>

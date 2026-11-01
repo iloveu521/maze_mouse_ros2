@@ -1,0 +1,21 @@
+[INFO] [1793520583.700810460] [maze_navigator]: C++20 left-wall follower: straight target 0.50 m/s, arc 0.24 m/s, no flood planning
+[INFO] [1793520591.424052797] [maze_navigator]: TURN_LEFT: pose=(2.208,0.546,0.006), left=1.397 front=3.474 right=0.484
+[INFO] [1793520593.163571811] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(2.616,0.713,1.499), left=1.215 front=1.250 right=2.606
+[INFO] [1793520598.075234215] [maze_navigator]: TURN_LEFT: pose=(2.467,1.078,1.269), left=2.511 front=0.932 right=2.310
+[INFO] [1793520600.838021206] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(2.347,1.465,3.078), left=1.410 front=2.324 right=0.476
+[INFO] [1793520605.852000030] [maze_navigator]: TURN_RIGHT: pose=(0.755,1.460,3.089), left=0.398 front=0.721 right=3.386
+[INFO] [1793520607.795957438] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(0.256,1.651,1.657), left=0.220 front=0.785 right=1.322
+[INFO] [1793520618.423230589] [maze_navigator]: TURN_RIGHT: pose=(0.460,5.199,1.571), left=0.397 front=0.783 right=1.478
+[INFO] [1793520620.366732873] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(0.630,5.695,0.085), left=0.277 front=0.836 right=1.203
+[INFO] [1793520624.612378589] [maze_navigator]: TURN_RIGHT: pose=(1.195,5.492,0.060), left=0.448 front=0.785 right=1.431
+[INFO] [1793520627.682237562] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(1.677,5.395,-1.483), left=0.274 front=1.353 right=1.636
+[INFO] [1793520631.775336246] [maze_navigator]: U_TURN: pose=(1.547,4.698,-1.201), left=0.437 front=0.713 right=0.499
+[INFO] [1793520636.533584697] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(1.569,4.652,1.532), left=0.504 front=1.324 right=0.373
+[INFO] [1793520638.426387200] [maze_navigator]: TURN_LEFT: pose=(1.478,5.334,1.769), left=1.449 front=0.643 right=0.470
+[INFO] [1793520639.909725060] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(1.285,5.611,3.102), left=1.514 front=1.261 right=0.341
+[INFO] [1793520644.998703741] [maze_navigator]: TURN_LEFT: pose=(0.956,5.516,2.977), left=2.651 front=0.946 right=0.435
+[INFO] [1793520648.118462977] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(0.530,5.402,-1.691), left=1.448 front=2.075 right=0.492
+[INFO] [1793520653.181598534] [maze_navigator]: TURN_LEFT: pose=(0.545,3.776,-1.620), left=1.397 front=2.734 right=0.488
+[INFO] [1793520654.920424897] [maze_navigator]: FOLLOW_LEFT_WALL: pose=(0.727,3.386,-0.021), left=1.382 front=1.300 right=2.286
+[INFO] [1793520660.036856518] [maze_navigator]: TURN_RIGHT: pose=(1.307,3.300,-0.192), left=0.646 front=0.685 right=1.145
+[INFO] [1793520662.032278371] [maze_navigator]: FAULT: pose=(1.792,3.074,-1.371), left=0.162 front=1.084 right=0.766

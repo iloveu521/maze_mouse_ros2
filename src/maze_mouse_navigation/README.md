@@ -1,12 +1,10 @@
-# C++20 雷达居中导航与泛洪搜索
+# C++20 左墙跟随：直行目标 0.5 m/s
 
-所有感知、搜索、决策与控制算法均使用 C++20。Python launch 仅编排进程。
+默认启动使用左墙跟随控制器 `left_wall_follower`，直行目标速度为 **0.5 m/s**。感知、决策、路口定位与速度控制均为 C++20，使用 CMake 3.22 构建。Python launch 仅编排进程。
 
-节点订阅 `/scan` 与 `/odom`，在线识别单元间的墙和通路，不读取 Gazebo world、地图生成器布局或既有中心参考轨迹。启动只需已知格网尺寸、起点、目标格及出口方向。
+控制器订阅 `/scan` 与 `/odom`，不读取 world 墙体、预设参考路线或泛洪距离场。起点、出口坐标与单元间距由参数提供，决策优先级是 **左转 → 直行 → 右转 → 死胡同掉头**。
 
 ## 编译启动
-
-使用 CMake 3.22（已验证 3.22.1）与支持 C++20 的编译器，本机为 GCC 11.4。
 
 工作空间根目录，Zsh：
 
@@ -17,48 +15,67 @@ source install/setup.zsh
 ros2 launch maze_mouse_navigation navigation.launch.py
 ```
 
-Bash 对应使用 `setup.bash`。无界面运行追加 `gui:=false rviz:=false`。已有仿真时可追加 `simulation:=false`，但机器人必须停在配置的起点，朝向与 `start_heading` 一致，且不能有其他程序同时发布 `/cmd_vel`。
+Bash 对应使用 `setup.bash`。无界面运行追加 `gui:=false rviz:=false`。已有仿真时使用 `simulation:=false`，机器人应停在配置起点且朝向正确，同一时刻由一个程序发布 `/cmd_vel`。
 
-## 算法
+旧泛洪控制器保留用于对照，默认不运行：
 
-1. 雷达前方、左侧、右侧扇区默认分别为 `[-15°,15°]`、`[75°,105°]`、`[-105°,-75°]`。按照消息的 `angle_min` 和 `angle_increment` 选点，兼容跨 0° 和负角度起始扫描。
-2. 对扇区内有效距离作余弦投影，再取中位数，以减轻角度和离群点的影响。前方原始最小有效距离另作紧急停车判断。`+Inf` 视为量程内未命中；NaN、`-Inf`、超出量程和覆盖不足不用于驾驶。
-3. 单元中心停车并收集三帧扫描，多数投票识别前、左、右边界；已驶过的通路保持开放，对称更新相邻单元。其余内部边界初始为未知。
-4. 从目标单元反向 BFS 泛洪，目标距离为 0，距离逐层加 1。探索时暂将未知边当作可通行；发现墙体后重新泛洪。优先选择距离下降的相邻格，等距离时比较访问次数与转向次数。如果起步时选中了未扫描的后方边界，先转向扫描确认，再执行移动。这是在线搜索，并非读取预设路线。
-5. 路径执行采用单元中心航点：里程计闭环转向，使用实测角速度提供阻尼，连续确认角度与速度稳定后才向前行驶。两侧都有墙时根据左右距离差居中；只有一侧墙时保持期望侧向距离；交叉口两侧开阔时主要依靠航向和横向偏差。进入下一格后重新观察与规划。
-6. 到达目标格后按配置的出口方向驶出并停车。数据过期、扇区无效时停车等待；不可达、过大跟踪偏差或动作超时进入 `FAULT` 并持续发送零速度。
+```zsh
+ros2 launch maze_mouse_navigation navigation.launch.py controller:=maze_navigator
+```
 
-该版本以可靠的在线探索为基线，单元中心会停车观测，拐弯采用原地转向，不是此前仅用于检查地图的连续圆弧跟踪。后续可在已探明地图上对比更平滑、更快的路径执行器。
+启动文件分别选择 `config/left_wall.yaml` 和旧版 `config/navigation.yaml`，也可用 `params:=绝对路径` 指定配置。旧版说明见 [泛洪控制器](docs/flood_fill_controller.md)。
 
-两侧都有墙时，居中误差为 `e_center = (d_left - d_right) / 2`。角速度由航向误差、到通道中心线的横向误差、居中误差和实测角速度阻尼叠加，再做限幅。前方最小测距停车判断优先于行驶控制。
+## 雷达与控制
 
-实现位置：`include/maze_mouse_navigation/core.hpp` 与 `src/core.cpp` 为雷达分区、迷宫边界、泛洪和居中计算；`src/navigator.cpp` 为 ROS 通信、坐标对齐和观察/转向/行驶状态机。所有这些文件按 `-std=c++20` 编译。
+- 前方扇区 `[-15°,15°]`、左侧 `[75°,105°]`、右侧 `[-105°,-75°]`。根据扫描消息角度选点，使用投影中位距离；原始最小测距单独用于停车。
+- 左侧距离误差提供贴墙修正，里程计航向和角速度用于保持方向及抑制摆动。左侧开口处减速，并用不同扫描帧确认，避免把同一帧重复计数。
+- 确认左侧开口后优先左转；前方受阻而右侧开放时右转；三侧受阻时掉头。接近墙角但侧向开口尚未显现时先低速接近，避免过早把路口判成死胡同。
+- 需要转弯时减速到当前路口中心，确认车体停稳后，利用里程计航向及角速度反馈原地转向。连续确认转角、线速度和角速度稳定后，再等待新雷达帧并前进。使用里程计格号对路口去重，只利用 1 m 单元间距，不存储迷宫连通图或搜索路线。
+- 不再每走一格就停车观测。直道目标 0.5 m/s；开口确认、路口接近阶段速度上限为 0.20 m/s，随后逐步减速。转弯、死胡同掉头和最终到达出口会停车。
+- 到达出口区域后使用里程计接近配置目标并停车；雷达无效、数据超时立即输出零速度，过近障碍、路口定位偏差或动作超时进入 `FAULT`。
 
-## 配置与话题
+0.5 m/s 是本次 **Gazebo 仿真速度实验** 的控制配置，超出 Burger 实车的标称线速度范围；本次结果不作为实车速度能力的结论。
 
-`config/navigation.yaml` 提供格网、目标、30° 扇区、墙体判定阈值、速度和控制增益。默认线速度 0.20 m/s，上限按 Burger 的 0.22 m/s 校验。参数启动时读取；改变起点或重新开始实验，应重启节点并把机器人复位到起点。
+## 参数与话题
+
+默认参数见 [left_wall.yaml](config/left_wall.yaml)：
+
+| 参数 | 默认值 | 含义 |
+| --- | --- | --- |
+| `max_linear_speed` | 0.5 m/s | 直行目标上限 |
+| `approach_speed` | 0.20 m/s | 路口接近与开口确认速度上限 |
+| `desired_left_distance` | 0.40 m | 雷达到左墙的期望距离 |
+| `cell_size` | 1.0 m | 路口定位与去重的单元间距 |
+| `opening_distance` | 0.78 m | 侧向开口判定距离 |
+| `opening_scans` | 2 | 开口确认所需不同扫描帧数 |
+| `front_turn_distance` | 0.82 m | 开始考虑前方转弯的距离 |
+| `front_stop_distance` | 0.20 m | 前方紧急停车距离 |
+| `max_angular_speed` | 0.6 rad/s | 角速度指令上限 |
+| `data_timeout` | 0.7 s | 雷达/里程计接收超时 |
+
+参数在启动时读取，起点对应首次静止里程计位姿。默认起点 `(0.5,0.5,0)`，出口外目标 `(6.45,5.5,0)`。
 
 | 话题 | 类型 | 含义 |
 | --- | --- | --- |
-| `/scan` | sensor_msgs/LaserScan | 输入雷达 |
-| `/odom` | nav_msgs/Odometry | 输入里程计 |
-| `/cmd_vel` | geometry_msgs/Twist | 输出速度 |
-| `/maze_mouse/sectors` | geometry_msgs/Vector3Stamped | x=前方、y=左侧、z=右侧的投影中位距离 |
-| `/maze_mouse/status` | std_msgs/String | JSON 状态、位置、距离、已知边数、移动次数、泛洪值等 |
-| `/maze_mouse/path` | nav_msgs/Path | 基于当前观测、允许未知边的候选路线，RViz 中黄色 |
-| `/maze_mouse/trajectory` | nav_msgs/Path | 实际里程计轨迹，RViz 中蓝色 |
+| `/scan`、`/odom` | LaserScan、Odometry | 实际传感器输入 |
+| `/cmd_vel` | geometry_msgs/Twist | 速度指令 |
+| `/maze_mouse/sectors` | geometry_msgs/Vector3Stamped | x=前、y=左、z=右的投影中位距离 |
+| `/maze_mouse/status` | std_msgs/String | JSON：模式、位置、测距、转弯次数、速度与耗时 |
+| `/maze_mouse/path` | nav_msgs/Path | 当前路口接近目标，RViz 黄色 |
+| `/maze_mouse/trajectory` | nav_msgs/Path | 实际里程计轨迹，RViz 蓝色 |
 
-泛洪值为按 `y * columns + x` 排列的数组；`-1` 表示当前不可达。候选路线可能经过尚未观察的单元，会随探索更新。路径和轨迹发布在输入里程计坐标系，节点根据首次静止位姿将它与格网起点对齐。
+`max_command_speed` 是运行期间的最大线速度指令，`max_measured_speed` 是里程计报告的最大前向速度绝对值，两者分别记录。状态及路径均为控制器实际运行输出。
 
 ```zsh
 ros2 topic echo /maze_mouse/status --full-length
-ros2 topic echo /maze_mouse/sectors
-colcon test --packages-select maze_mouse_navigation
+colcon test --packages-select maze_mouse_gazebo maze_mouse_navigation
 colcon test-result --verbose
 ```
 
-此实现面向轴对齐、已知单元尺寸的矩形墙迷宫，不包含 SLAM 或任意非结构化环境建图。三扇区足以完成当前静态迷宫的局部识别，不代表全向动态避障。
+## 验证与范围
 
-## 来源与使用范围
+测试包含左优先、开口多帧确认、直行 0.5 m/s、无效数据停车、右转/掉头和出口停车，并用真实 world 的碰撞几何、5 Hz 射线扫描进行完整运动学检查。运动学检查与 Gazebo 动力学实测分开记录，结果见 [左墙跟随验证](docs/left_wall_validation.md)。旧版 `docs/validation.md` 只记录泛洪实验，不用于描述本版本效果。
 
-代码为本项目 AI 辅助实现；课程报告需按任务书记录 AI 使用范围与后续人工调试。实际验证结果记录在 `docs/validation.md`。该包是新增导航基线，地图包原有的参考路径仿真数据不作为本算法的运行结果。
+实现入口：`include/maze_mouse_navigation/left_wall.hpp`、`src/left_wall.cpp` 和 `src/left_wall_node.cpp`。该版本面向当前轴对齐格网迷宫，不包含 SLAM；左墙策略不保证最短路线，在存在独立墙岛的迷宫中也不保证到达任意目标。
+
+本功能为 AI 辅助实现；课程材料请按任务书记录实际使用范围、人工修改与实测过程。
