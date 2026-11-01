@@ -18,12 +18,12 @@ def generate_launch_description():
         DeclareLaunchArgument('simulation', default_value='true'),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='true'),
-        DeclareLaunchArgument('controller', default_value='left_wall_follower',
-                             choices=['left_wall_follower', 'maze_navigator']),
+        DeclareLaunchArgument('controller', default_value='costmap_follower',
+                             choices=['costmap_follower', 'left_wall_follower', 'maze_navigator']),
         DeclareLaunchArgument('params', default_value=PathJoinSubstitution([
             str(share), 'config', PythonExpression([
-                "'left_wall.yaml' if '", LaunchConfiguration('controller'),
-                "' == 'left_wall_follower' else 'navigation.yaml'",
+                "{'costmap_follower':'costmap.yaml','left_wall_follower':'left_wall.yaml',",
+                "'maze_navigator':'navigation.yaml'}['", LaunchConfiguration('controller'), "']",
             ]),
         ])),
         IncludeLaunchDescription(

@@ -41,8 +41,29 @@ Visualization Manager:
       Style: Points
       Color Transformer: FlatColor
       Color: 70; 220; 180
+    - Class: rviz_default_plugins/Map
+      Name: Inflated Local Costmap
+      Enabled: true
+      Alpha: 0.55
+      Color Scheme: costmap
+      Topic:
+        Value: /maze_mouse/costmap
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+    - Class: rviz_default_plugins/Map
+      Name: Raw Laser Obstacles
+      Enabled: false
+      Alpha: 0.7
+      Topic:
+        Value: /maze_mouse/obstacles
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
     - Class: rviz_default_plugins/Path
-      Name: Reference Path
+      Name: Selected Local Trajectory
       Enabled: true
       Topic:
         Value: /maze_mouse/path

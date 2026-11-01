@@ -1,0 +1,97 @@
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 7 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 3 tests from Costmap
+[ RUN      ] Costmap.BodyRadiusAndExtraTenCentimetresAreBothInflated
+[       OK ] Costmap.BodyRadiusAndExtraTenCentimetresAreBothInflated (1 ms)
+[ RUN      ] Costmap.InvalidScanDoesNotCreateFreeSpaceAndUnknownIsNotTraversable
+[       OK ] Costmap.InvalidScanDoesNotCreateFreeSpaceAndUnknownIsNotTraversable (0 ms)
+[ RUN      ] Costmap.RollingOriginAndLaserOffsetKeepWallInWorldCoordinates
+[       OK ] Costmap.RollingOriginAndLaserOffsetKeepWallInWorldCoordinates (1 ms)
+[----------] 3 tests from Costmap (2 ms total)
+
+[----------] 2 tests from CostmapPlanner
+[ RUN      ] CostmapPlanner.MissingDataAndCompletedGoalOutputZero
+[       OK ] CostmapPlanner.MissingDataAndCompletedGoalOutputZero (0 ms)
+[ RUN      ] CostmapPlanner.ReadyMapStillRejectsUnknownRobotPosition
+[       OK ] CostmapPlanner.ReadyMapStillRejectsUnknownRobotPosition (0 ms)
+[----------] 2 tests from CostmapPlanner (0 ms total)
+
+[----------] 2 tests from CleanAndNoisyOffsetStart/CostmapWorld
+[ RUN      ] CleanAndNoisyOffsetStart/CostmapWorld.FullWorldWithFiveHertzLaserAndActuatorLag/0
+0 FOLLOW_COSTMAP xy=0.5,0.5 yaw=0 v/w=0.5,0 desired=1.23358e-16 d=0.329289
+10 FOLLOW_COSTMAP xy=2.39925,1.34352 yaw=2.34796 v/w=0.387964,0.66 desired=2.9693 d=0.384467
+20 FOLLOW_COSTMAP xy=0.447928,2.44129 yaw=1.54589 v/w=0.331793,-0.0523282 desired=1.47786 d=0.302217
+30 FOLLOW_COSTMAP xy=0.484534,5.30376 yaw=1.61255 v/w=0.0833018,0.014971 desired=1.63201 d=0.338823
+40 FOLLOW_COSTMAP xy=1.54761,4.64343 yaw=-1.96279 v/w=0,-0.9 desired=1.80251 d=0.306675
+43.65 RECOVER_CLEARANCE xy=1.42301,4.87024 yaw=1.82065 v/w=0.0961361,-0.42 desired=1.1781 d=0.277303
+45.65 FOLLOW_COSTMAP xy=1.43962,5.15377 yaw=1.316 v/w=0,0.66 desired=2.1912 d=0.316756
+50 FOLLOW_COSTMAP xy=0.804037,5.54068 yaw=-2.8692 v/w=0.246925,0.42 desired=-2.17696 d=0.313608
+52.95 RECOVER_CLEARANCE xy=0.425039,4.89864 yaw=-1.63699 v/w=0.120569,0.3 desired=-1.1781 d=0.279329
+54.9 FOLLOW_COSTMAP xy=0.461453,4.58876 yaw=-1.3271 v/w=0.164622,-0.0853784 desired=-1.43809 d=0.315743
+57 RECOVER_CLEARANCE xy=0.579603,3.94798 yaw=-1.25748 v/w=0.0868577,-0.78 desired=-1.9635 d=0.276635
+58.8 FOLLOW_COSTMAP xy=0.597461,3.76941 yaw=-1.68646 v/w=0,0.72 desired=-0.770158 d=0.316449
+60 FOLLOW_COSTMAP xy=0.617783,3.65676 yaw=-1.21231 v/w=0.135492,0.48 desired=-0.468929 d=0.372105
+61.85 RECOVER_CLEARANCE xy=0.974766,3.42547 yaw=-0.216235 v/w=0,0.9 desired=2.74889 d=0.279771
+63.3 FOLLOW_COSTMAP xy=1.19359,3.42138 yaw=0.155619 v/w=0.16515,0.073491 desired=0.251157 d=0.315171
+67.25 RECOVER_CLEARANCE xy=1.57801,3.05466 yaw=-1.35334 v/w=0,-0.9 desired=2.35619 d=0.276282
+69 FOLLOW_COSTMAP xy=1.57956,2.80182 yaw=-1.76302 v/w=0.142211,0.54 desired=-1.04668 d=0.316408
+70 FOLLOW_COSTMAP xy=1.57829,2.7342 yaw=-1.31523 v/w=0.213781,0.48 desired=-0.236509 d=0.351796
+71.95 RECOVER_CLEARANCE xy=1.98644,2.42466 yaw=-0.172221 v/w=0,0.9 desired=2.55254 d=0.278951
+74.05 FOLLOW_COSTMAP xy=2.29483,2.46073 yaw=0.27216 v/w=0.164299,-0.091893 desired=0.152699 d=0.315019
+76.55 RECOVER_CLEARANCE xy=3.06033,2.57762 yaw=0.261025 v/w=0.0945236,-0.66 desired=-0.392699 d=0.279205
+78.05 FOLLOW_COSTMAP xy=3.24408,2.60432 yaw=-0.0178825 v/w=0,0.72 desired=1.3911 d=0.318412
+80 FOLLOW_COSTMAP xy=3.45223,2.71062 yaw=0.842999 v/w=0.300569,0.78 desired=1.88268 d=0.390527
+90 FOLLOW_COSTMAP xy=2.442,4.08059 yaw=1.53518 v/w=0.499709,-0.0185689 desired=1.51104 d=0.296291
+96.7 RECOVER_CLEARANCE xy=3.0024,5.57513 yaw=0.15278 v/w=0.109623,-0.36 desired=-0.392699 d=0.279156
+98.95 FOLLOW_COSTMAP xy=3.33122,5.53923 yaw=-0.260484 v/w=0.0797002,0.161806 desired=-0.0501357 d=0.315061
+100 FOLLOW_COSTMAP xy=3.36159,5.53145 yaw=-0.643068 v/w=0,-0.9 desired=-2.97591 d=0.322844
+103.35 RECOVER_CLEARANCE xy=3.15282,5.42535 yaw=-2.91842 v/w=0.0999445,-0.42 desired=2.74889 d=0.279634
+105.4 FOLLOW_COSTMAP xy=2.87303,5.44826 yaw=2.90887 v/w=0.213377,0.48 desired=-2.73095 d=0.316395
+110 FOLLOW_COSTMAP xy=2.5622,4.71858 yaw=-1.01091 v/w=0.125498,0.3 desired=-0.490767 d=0.367445
+120 FOLLOW_COSTMAP xy=4.58865,5.37434 yaw=1.68073 v/w=0,-0.9 desired=0.202718 d=0.414528
+123.9 EXITING xy=5.25506,5.552 yaw=-0.0520616 v/w=0.499963,0.00659315 desired=-0.0434905 d=0.302288
+127.2 COMPLETE xy=6.31102,5.50377 yaw=-0.0338975 v/w=0,0 desired=-0.0273464 d=0.421375
+COSTMAP_COMPLETE sim_s=127.2 max_v=0.5 min_physical_clearance=0.345692
+[       OK ] CleanAndNoisyOffsetStart/CostmapWorld.FullWorldWithFiveHertzLaserAndActuatorLag/0 (2699 ms)
+[ RUN      ] CleanAndNoisyOffsetStart/CostmapWorld.FullWorldWithFiveHertzLaserAndActuatorLag/1
+0 FOLLOW_COSTMAP xy=0.56,0.47 yaw=0.07 v/w=0.499341,-0.0279268 desired=0.0336951 d=0.324289
+10 FOLLOW_COSTMAP xy=2.38335,1.35698 yaw=2.3969 v/w=0.400119,0.66 desired=2.98108 d=0.382882
+20 FOLLOW_COSTMAP xy=0.447677,2.47585 yaw=1.54274 v/w=0.331635,-0.0549527 desired=1.4713 d=0.301966
+30 FOLLOW_COSTMAP xy=0.483725,5.31725 yaw=1.61365 v/w=0.083305,0.0141861 desired=1.6321 d=0.338014
+33.75 RECOVER_CLEARANCE xy=1.04404,5.57436 yaw=0.012313 v/w=0.101986,-0.42 desired=-0.589049 d=0.279927
+35.2 FOLLOW_COSTMAP xy=1.23176,5.53834 yaw=-0.369213 v/w=0.301044,-0.6 desired=-1.0518 d=0.315947
+40 FOLLOW_COSTMAP xy=1.54036,4.69986 yaw=-2.08903 v/w=0,-0.9 desired=1.811 d=0.313929
+43.6 RECOVER_CLEARANCE xy=1.4235,4.9102 yaw=1.84504 v/w=0.0926021,-0.42 desired=1.1781 d=0.277788
+45.5 FOLLOW_COSTMAP xy=1.43192,5.17354 yaw=1.32834 v/w=0,0.66 desired=2.31589 d=0.316016
+50 FOLLOW_COSTMAP xy=0.745132,5.5231 yaw=-2.74038 v/w=0.27393,0.66 desired=-2.00292 d=0.331143
+56.1 RECOVER_CLEARANCE xy=0.595282,3.85972 yaw=-1.08481 v/w=0,-0.9 desired=-1.9635 d=0.279341
+57.85 FOLLOW_COSTMAP xy=0.634728,3.72041 yaw=-1.57623 v/w=0,0.78 desired=-0.732802 d=0.315766
+60 FOLLOW_COSTMAP xy=0.75823,3.51554 yaw=-0.576829 v/w=0.36077,0.66 desired=-0.0209471 d=0.367272
+60.7 RECOVER_CLEARANCE xy=0.998492,3.42155 yaw=-0.225433 v/w=0.0996246,0.42 desired=0.392699 d=0.275835
+62.1 FOLLOW_COSTMAP xy=1.20842,3.41375 yaw=0.128236 v/w=0.16247,0.12 desired=0.287598 d=0.315213
+66.1 RECOVER_CLEARANCE xy=1.57793,3.04508 yaw=-1.35239 v/w=0,-0.9 desired=2.35619 d=0.276361
+67.85 FOLLOW_COSTMAP xy=1.58327,2.79145 yaw=-1.73127 v/w=0.147452,0.534692 desired=-1.03617 d=0.317868
+70 FOLLOW_COSTMAP xy=1.74441,2.51412 yaw=-0.561439 v/w=0.3661,0.66 desired=-0.0175197 d=0.367558
+70.7 RECOVER_CLEARANCE xy=1.99539,2.42409 yaw=-0.165216 v/w=0,0.9 desired=2.55254 d=0.278384
+72.8 FOLLOW_COSTMAP xy=2.30348,2.46186 yaw=0.274711 v/w=0.16423,-0.0932466 desired=0.153491 d=0.316151
+75.2 RECOVER_CLEARANCE xy=3.04795,2.57661 yaw=0.227573 v/w=0.0993212,-0.6 desired=-0.392699 d=0.279323
+76.65 FOLLOW_COSTMAP xy=3.23229,2.59705 yaw=-0.0411203 v/w=0,0.72 desired=1.3772 d=0.317757
+80 FOLLOW_COSTMAP xy=3.565,3.07555 yaw=1.62583 v/w=0.266737,0.48 desired=2.37773 d=0.289293
+90 FOLLOW_COSTMAP xy=2.46955,4.62176 yaw=1.51186 v/w=0.249964,-0.00927102 desired=1.49981 d=0.323837
+95.35 RECOVER_CLEARANCE xy=3.00183,5.5752 yaw=0.153643 v/w=0.109508,-0.36 desired=-0.392699 d=0.279085
+97.65 FOLLOW_COSTMAP xy=3.33715,5.53771 yaw=-0.258103 v/w=0.0795644,0.164848 desired=-0.0438009 d=0.316579
+100 FOLLOW_COSTMAP xy=3.36305,5.53104 yaw=-1.82366 v/w=0,-0.66 desired=-2.9769 d=0.32325
+101.95 RECOVER_CLEARANCE xy=3.15725,5.42561 yaw=-2.91993 v/w=0.100158,-0.42 desired=2.74889 d=0.279902
+104 FOLLOW_COSTMAP xy=2.87352,5.44927 yaw=2.91185 v/w=0.213536,0.48 desired=-2.72847 d=0.317212
+110 FOLLOW_COSTMAP xy=2.93617,4.46741 yaw=-0.265247 v/w=0.376842,0.36 desired=0.0490616 d=0.324164
+120 FOLLOW_COSTMAP xy=4.66636,5.44 yaw=0.688082 v/w=0.297353,-0.66 desired=0.123433 d=0.369105
+122.3 EXITING xy=5.25279,5.55469 yaw=-0.0190362 v/w=0.499646,-0.0204723 desired=-0.0456502 d=0.299599
+125.6 COMPLETE xy=6.31301,5.51109 yaw=-0.0664453 v/w=0,0 desired=-0.0803481 d=0.4225
+COSTMAP_COMPLETE sim_s=125.6 max_v=0.499896 min_physical_clearance=0.344484
+[       OK ] CleanAndNoisyOffsetStart/CostmapWorld.FullWorldWithFiveHertzLaserAndActuatorLag/1 (2709 ms)
+[----------] 2 tests from CleanAndNoisyOffsetStart/CostmapWorld (5408 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 3 test suites ran. (5410 ms total)
+[  PASSED  ] 7 tests.

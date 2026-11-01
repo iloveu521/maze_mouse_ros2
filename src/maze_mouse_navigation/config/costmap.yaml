@@ -1,0 +1,27 @@
+maze_navigator:
+  ros__parameters:
+    use_sim_time: true
+    start_x: 0.5
+    start_y: 0.5
+    start_yaw: 0.0
+    goal_x: 6.45
+    goal_y: 5.5
+    goal_tolerance: 0.14
+    max_linear_speed: 0.5
+    max_angular_speed: 0.9
+    linear_acceleration: 0.8
+    linear_deceleration: 1.0
+    angular_acceleration: 1.5
+    prediction_horizon: 1.5
+    reaction_time: 0.20
+    desired_left_distance: 0.30
+    sector_width_deg: 30.0
+    data_timeout: 0.7
+    costmap_resolution: 0.05
+    costmap_size: 4.0
+    robot_radius: 0.14
+    inflation_margin: 0.10
+    soft_cost_radius: 0.55
+    laser_offset_x: -0.032
+    laser_offset_y: 0.0
+    laser_yaw: 0.0

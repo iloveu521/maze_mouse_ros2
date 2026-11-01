@@ -1,12 +1,6 @@
-# C++20 左墙跟随：直行目标 0.5 m/s
+# 雷达局部 costmap 与连续左墙跟随
 
-默认启动使用左墙跟随控制器 `left_wall_follower`，直行目标速度为 **0.5 m/s**。感知、决策、路口定位与速度控制均为 C++20，使用 CMake 3.22 构建。Python launch 仅编排进程。
-
-控制器订阅 `/scan` 与 `/odom`，不读取 world 墙体、预设参考路线或泛洪距离场。起点、出口坐标与单元间距由参数提供，决策优先级是 **左转 → 直行 → 右转 → 死胡同掉头**。
-
-## 编译启动
-
-工作空间根目录，Zsh：
+默认控制器 `costmap_follower` 使用 **C++20、CMake 3.22**。输入是 `/scan` 和 `/odom`，直行速度上限 **0.5 m/s**。转弯位置由扫描到的墙体和预测轨迹决定，不要求到达迷宫单元中心或停稳后再转弯。
 
 ```zsh
 source /opt/ros/humble/setup.zsh
@@ -15,67 +9,74 @@ source install/setup.zsh
 ros2 launch maze_mouse_navigation navigation.launch.py
 ```
 
-Bash 对应使用 `setup.bash`。无界面运行追加 `gui:=false rviz:=false`。已有仿真时使用 `simulation:=false`，机器人应停在配置起点且朝向正确，同一时刻由一个程序发布 `/cmd_vel`。
+Bash 使用 `setup.bash`。无界面追加 `gui:=false rviz:=false`；已有仿真使用 `simulation:=false`。同一时刻只运行一个速度控制器，机器人从配置起点静止启动。
 
-旧泛洪控制器保留用于对照，默认不运行：
+## 感知与安全空间
 
-```zsh
-ros2 launch maze_mouse_navigation navigation.launch.py controller:=maze_navigator
-```
+保留前方 `[-15°,15°]`、左侧 `[75°,105°]`、右侧 `[-105°,-75°]` 三个 30° 扇区，输出投影中位距离、原始最小距离和有效性。局部建图使用完整 360° 扫描，以保留斜向墙角及转弯后的障碍信息。
 
-启动文件分别选择 `config/left_wall.yaml` 和旧版 `config/navigation.yaml`，也可用 `params:=绝对路径` 指定配置。旧版说明见 [泛洪控制器](docs/flood_fill_controller.md)。
+扫描点按激光安装偏移和里程计转换到局部固定坐标，射线清除可见自由空间，命中点累积占据证据；地图随车辆滚动，重叠区域保留。未知区域不参与正常路径规划。
 
-## 雷达与控制
+墙体膨胀包含 **车体包络半径 0.14 m + 额外间隙 0.10 m = 0.24 m**，而不是仅把点状车辆与墙隔开 0.10 m。欧氏距离场生成硬障碍区和渐变软代价；离散化与距离插值额外采用保守补偿。
 
-- 前方扇区 `[-15°,15°]`、左侧 `[75°,105°]`、右侧 `[-105°,-75°]`。根据扫描消息角度选点，使用投影中位距离；原始最小测距单独用于停车。
-- 左侧距离误差提供贴墙修正，里程计航向和角速度用于保持方向及抑制摆动。左侧开口处减速，并用不同扫描帧确认，避免把同一帧重复计数。
-- 确认左侧开口后优先左转；前方受阻而右侧开放时右转；三侧受阻时掉头。接近墙角但侧向开口尚未显现时先低速接近，避免过早把路口判成死胡同。
-- 需要转弯时减速到当前路口中心，确认车体停稳后，利用里程计航向及角速度反馈原地转向。连续确认转角、线速度和角速度稳定后，再等待新雷达帧并前进。使用里程计格号对路口去重，只利用 1 m 单元间距，不存储迷宫连通图或搜索路线。
-- 不再每走一格就停车观测。直道目标 0.5 m/s；开口确认、路口接近阶段速度上限为 0.20 m/s，随后逐步减速。转弯、死胡同掉头和最终到达出口会停车。
-- 到达出口区域后使用里程计接近配置目标并停车；雷达无效、数据超时立即输出零速度，过近障碍、路口定位偏差或动作超时进入 `FAULT`。
+## 连续控制
 
-0.5 m/s 是本次 **Gazebo 仿真速度实验** 的控制配置，超出 Burger 实车的标称线速度范围；本次结果不作为实车速度能力的结论。
+1. 沿扫描墙体的偏置轮廓选取左墙方向的局部目标，保持轮廓方向及目标连续性，避免在死胡同两侧来回切换。控制器不加载 world、迷宫连通图或预设解答。
+2. 在局部 costmap 上使用 A* 为这个局部目标绕开障碍，再检查并简化路径。这里的 5 cm 网格只是障碍表示精度，不是 1 m 迷宫单元，也不要求车辆逐点停靠。
+3. 采样线速度与角速度组合，预测加减速、执行延迟及停车过程，剔除碰撞轨迹，再按前进进度、路径偏差、航向和墙边代价选取速度。转弯中可以同时前进和转向。
+4. 车辆接近膨胀区时进入 `RECOVER_CLEARANCE`，低速朝更宽敞方向恢复间隙。新扫描使当前位置浅度落入膨胀边缘时，只允许不再深入的脱离轨迹；深度重叠和未知位置停车。
+5. 朝向偏差大、死胡同回转或无可行弧线时可以停车旋转，停车位置不与迷宫栅格中心绑定。雷达无效、数据过期立即输出零速度；持续 15 秒无平移进入 `FAULT`。到达配置出口后停车。
 
-## 参数与话题
+这是左墙策略加局部避障，不执行全局泛洪搜索，不保证最短路。当前版本用里程计维护局部地图，未接入 SLAM 或全局定位，长时间累计漂移仍会影响出口判定。0.5 m/s 为当前 Gazebo 实验配置。
 
-默认参数见 [left_wall.yaml](config/left_wall.yaml)：
+## 参数
+
+默认配置见 [costmap.yaml](config/costmap.yaml)，启动时可用 `params:=绝对路径` 替换。
 
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
-| `max_linear_speed` | 0.5 m/s | 直行目标上限 |
-| `approach_speed` | 0.20 m/s | 路口接近与开口确认速度上限 |
-| `desired_left_distance` | 0.40 m | 雷达到左墙的期望距离 |
-| `cell_size` | 1.0 m | 路口定位与去重的单元间距 |
-| `opening_distance` | 0.78 m | 侧向开口判定距离 |
-| `opening_scans` | 2 | 开口确认所需不同扫描帧数 |
-| `front_turn_distance` | 0.82 m | 开始考虑前方转弯的距离 |
-| `front_stop_distance` | 0.20 m | 前方紧急停车距离 |
-| `max_angular_speed` | 0.6 rad/s | 角速度指令上限 |
-| `data_timeout` | 0.7 s | 雷达/里程计接收超时 |
+| `max_linear_speed` | 0.5 m/s | 线速度上限；转弯和避障时自动降低 |
+| `max_angular_speed` | 0.9 rad/s | 角速度上限 |
+| `costmap_resolution` / `costmap_size` | 0.05 m / 4.0 m | 滚动地图精度与边长 |
+| `robot_radius` | 0.14 m | 车体圆形包络半径 |
+| `inflation_margin` | 0.10 m | 在车体之外增加的墙边间隙 |
+| `soft_cost_radius` | 0.55 m | 渐变墙边代价的范围 |
+| `desired_left_distance` | 0.30 m | 用于追踪左墙方向的偏置轮廓；非强制行驶距离 |
+| `prediction_horizon` / `reaction_time` | 1.5 s / 0.20 s | 轨迹预测与延迟预算 |
+| `linear_acceleration` / `linear_deceleration` | 0.8 / 1.0 m/s² | 预测模型的加减速能力 |
+| `angular_acceleration` | 1.5 rad/s² | 预测模型的角加速度 |
+| `laser_offset_x` | -0.032 m | Burger 激光相对车体中心的纵向偏移 |
+| `sector_width_deg` / `data_timeout` | 30° / 0.7 s | 扇区宽度与传感器超时 |
 
-参数在启动时读取，起点对应首次静止里程计位姿。默认起点 `(0.5,0.5,0)`，出口外目标 `(6.45,5.5,0)`。
+默认起点 `(0.5,0.5,0)`，出口目标 `(6.45,5.5)`，与首次里程计位姿建立对应。更换机器人时需要同步修改车体包络、激光安装参数和运动模型。
 
-| 话题 | 类型 | 含义 |
+## 观察与验证
+
+| 话题 | 类型 | 内容 |
 | --- | --- | --- |
-| `/scan`、`/odom` | LaserScan、Odometry | 实际传感器输入 |
-| `/cmd_vel` | geometry_msgs/Twist | 速度指令 |
-| `/maze_mouse/sectors` | geometry_msgs/Vector3Stamped | x=前、y=左、z=右的投影中位距离 |
-| `/maze_mouse/status` | std_msgs/String | JSON：模式、位置、测距、转弯次数、速度与耗时 |
-| `/maze_mouse/path` | nav_msgs/Path | 当前路口接近目标，RViz 黄色 |
-| `/maze_mouse/trajectory` | nav_msgs/Path | 实际里程计轨迹，RViz 蓝色 |
-
-`max_command_speed` 是运行期间的最大线速度指令，`max_measured_speed` 是里程计报告的最大前向速度绝对值，两者分别记录。状态及路径均为控制器实际运行输出。
+| `/cmd_vel` | Twist | 实际速度指令 |
+| `/maze_mouse/obstacles` | OccupancyGrid | 雷达占据地图 |
+| `/maze_mouse/costmap` | OccupancyGrid | 膨胀区及墙边代价，RViz 默认显示 |
+| `/maze_mouse/path` | Path | 当前选中的预测轨迹，黄色 |
+| `/maze_mouse/trajectory` | Path | 实际里程计轨迹，蓝色 |
+| `/maze_mouse/sectors` | Vector3Stamped | x=前、y=左、z=右的扇区距离 |
+| `/maze_mouse/status` | String | JSON：状态、速度、膨胀半径、间隙、里程、耗时及计算时间 |
 
 ```zsh
-ros2 topic echo /maze_mouse/status --full-length
+ros2 topic echo /maze_mouse/status std_msgs/msg/String --no-daemon --full-length
 colcon test --packages-select maze_mouse_gazebo maze_mouse_navigation
 colcon test-result --verbose
 ```
 
-## 验证与范围
+测试读取实际 world 碰撞几何，用 5 Hz 射线扫描和执行器延迟检查完整跑图、移动中转弯及墙边间隙。它与 Gazebo 动力学实测分别记录在 [costmap 验证](docs/costmap_validation.md)，可查看[实际轨迹与膨胀地图](docs/costmap_run.svg)。
 
-测试包含左优先、开口多帧确认、直行 0.5 m/s、无效数据停车、右转/掉头和出口停车，并用真实 world 的碰撞几何、5 Hz 射线扫描进行完整运动学检查。运动学检查与 Gazebo 动力学实测分开记录，结果见 [左墙跟随验证](docs/left_wall_validation.md)。旧版 `docs/validation.md` 只记录泛洪实验，不用于描述本版本效果。
+实现：[local_costmap.hpp](include/maze_mouse_navigation/local_costmap.hpp)、[local_costmap.cpp](src/local_costmap.cpp)、[costmap_node.cpp](src/costmap_node.cpp)。Python launch 只编排进程。
 
-实现入口：`include/maze_mouse_navigation/left_wall.hpp`、`src/left_wall.cpp` 和 `src/left_wall_node.cpp`。该版本面向当前轴对齐格网迷宫，不包含 SLAM；左墙策略不保证最短路线，在存在独立墙岛的迷宫中也不保证到达任意目标。
+## 保留的对照控制器
 
-本功能为 AI 辅助实现；课程材料请按任务书记录实际使用范围、人工修改与实测过程。
+```zsh
+ros2 launch maze_mouse_navigation navigation.launch.py controller:=left_wall_follower
+ros2 launch maze_mouse_navigation navigation.launch.py controller:=maze_navigator
+```
+
+它们分别使用 `left_wall.yaml` 和 `navigation.yaml`。[旧左墙控制器](docs/left_wall_controller.md)仍按路口中心停车转向；[旧泛洪控制器](docs/flood_fill_controller.md)保留用于对照。默认均不运行。

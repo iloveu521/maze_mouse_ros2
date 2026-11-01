@@ -6,7 +6,7 @@
 
 - `maps/`：老师提供的原始世界文件，保持原样。
 - `src/maze_mouse_gazebo/`：约 6×6 米的 6×6 单元迷宫、Gazebo/TurtleBot3/RViz2 启动文件及地图生成和校验工具。
-- `src/maze_mouse_navigation/`：C++20 前/左/右 30° 雷达分区、左墙跟随；仿真直行目标速度 0.5 m/s，路口减速到位后停车转向。
+- `src/maze_mouse_navigation/`：C++20 雷达局部 costmap、墙体膨胀与连续左墙跟随；速度上限 0.5 m/s，转弯不绑定迷宫栅格中心。
 
 [完整使用说明](src/maze_mouse_gazebo/README.md) · [地图俯视设计图](src/maze_mouse_gazebo/docs/maze_6x6.svg) · [参考通路](src/maze_mouse_gazebo/docs/maze_6x6_solution.svg)
 
@@ -24,7 +24,7 @@ ros2 launch maze_mouse_gazebo maze.launch.py
 
 Bash 终端将 `setup.zsh` 改为 `setup.bash`。无界面运行追加 `gui:=false rviz:=false`。
 
-使用 C++20 左墙跟随（自动启动仿真，需先关闭上面的仅地图实例）：
+使用 C++20 costmap 控制器（自动启动仿真，需先关闭上面的仅地图实例）：
 
 ```zsh
 colcon build --symlink-install --packages-up-to maze_mouse_navigation
@@ -32,4 +32,4 @@ source install/setup.zsh
 ros2 launch maze_mouse_navigation navigation.launch.py
 ```
 
-算法说明、参数和状态话题见 [导航功能包说明](src/maze_mouse_navigation/README.md)。默认控制器使用实际雷达和里程计跟随左墙，直道不逐格停车，不加载预设路线或执行泛洪搜索。旧泛洪控制器可通过 `controller:=maze_navigator` 单独对照运行。
+算法说明、参数和状态话题见 [导航功能包说明](src/maze_mouse_navigation/README.md)。默认控制器将实际雷达墙体按车体半径 0.14 m 加额外 0.10 m 间隙膨胀，使用局部路径与预测轨迹连续转弯；不加载预设路线或执行全局泛洪搜索。旧路口停车左墙控制器和泛洪控制器分别通过 `controller:=left_wall_follower`、`controller:=maze_navigator` 对照运行。

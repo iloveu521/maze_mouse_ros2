@@ -2,7 +2,7 @@
 <package format="3">
   <name>maze_mouse_navigation</name>
   <version>0.1.0</version>
-  <description>C++20 left-wall following with a legacy flood-fill comparison controller.</description>
+  <description>C++20 laser costmap and continuous left-wall navigation with legacy comparison controllers.</description>
   <maintainer email="maintainer@example.com">Maze Mouse Project</maintainer>
   <license>Apache-2.0</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
