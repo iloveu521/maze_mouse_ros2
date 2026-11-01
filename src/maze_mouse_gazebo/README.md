@@ -2,7 +2,7 @@
 
 面向 **ROS 2 Humble / TurtleBot3 Burger / Gazebo Classic 11** 实验，提供约 6×6 米的迷宫及一键启动文件。本包负责环境与机器人加载，供后续路径搜索、沿通道中心导航、轨迹平滑及速度规划实验使用。
 
-默认的 C++20 连续左墙跟随导航见相邻的 [maze_mouse_navigation](../maze_mouse_navigation/README.md)，当前 Gazebo 配置的线速度指令上限为 1.2 m/s，支持运行中调参；本包的 `maze.launch.py` 仍只启动环境与可视化。
+默认的 C++20 连续左墙跟随导航见相邻的 [maze_mouse_navigation](../maze_mouse_navigation/README.md)，当前 Gazebo 复测配置的线速度指令上限为 0.8 m/s，支持运行中调参；本包的 `maze.launch.py` 仍只启动环境与可视化。
 
 ![迷宫设计俯视图](docs/maze_6x6.svg)
 

@@ -75,6 +75,18 @@ Visualization Manager:
       Line Style: Lines
       Line Width: 0.03
     - Class: rviz_default_plugins/Path
+      Name: Wall Reference / U-turn Curve
+      Enabled: true
+      Topic:
+        Value: /maze_mouse/reference
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Depth: 1
+      Color: 70; 230; 120
+      Line Style: Lines
+      Line Width: 0.04
+    - Class: rviz_default_plugins/Path
       Name: Actual Trajectory
       Enabled: true
       Topic:

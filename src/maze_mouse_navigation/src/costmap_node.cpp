@@ -60,10 +60,9 @@ public:
     start_y_ = real("start_y", 0.5);
     start_yaw_ = real("start_yaw", 0);
     timeout_ = real("data_timeout", 0.7);
-    width_ = real("sector_width_deg", 30) * pi / 180;
     if (!std::isfinite(start_x_) || !std::isfinite(start_y_) ||
         !std::isfinite(start_yaw_) || !(timeout_ > 0) ||
-        !std::isfinite(timeout_) || !(width_ > 0 && width_ <= pi / 2))
+        !std::isfinite(timeout_))
       throw std::invalid_argument("Invalid frame/scan parameters");
     parameter_callback_ = add_on_set_parameters_callback(
         [this](const std::vector<rclcpp::Parameter> &parameters) {
@@ -123,6 +122,8 @@ public:
     status_pub_ =
         create_publisher<std_msgs::msg::String>("maze_mouse/status", qos);
     path_pub_ = create_publisher<nav_msgs::msg::Path>("maze_mouse/path", qos);
+    reference_pub_ =
+        create_publisher<nav_msgs::msg::Path>("maze_mouse/reference", qos);
     trajectory_pub_ =
         create_publisher<nav_msgs::msg::Path>("maze_mouse/trajectory", qos);
     raw_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(
@@ -161,18 +162,13 @@ public:
     scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
         "scan", rclcpp::SensorDataQoS(),
         [this](sensor_msgs::msg::LaserScan::ConstSharedPtr scan) {
-          auto extract = [&](double center) {
-            return extract_sector(scan->ranges, scan->angle_min,
-                                  scan->angle_increment, scan->range_min,
-                                  scan->range_max, center, width_);
-          };
-          sectors_ = {extract(0), extract(pi / 2), extract(-pi / 2)};
           scan_time_ = Clock::now();
           have_scan_ = true;
           valid_map_ =
               have_odom_ && map_->update(pose_, scan->ranges, scan->angle_min,
                                          scan->angle_increment, scan->range_min,
                                          scan->range_max);
+          sectors_ = valid_map_ ? map_->scan_geometry().sectors : Sectors{};
           for (float v : scan->ranges)
             if (std::isfinite(v) && v >= scan->range_min &&
                 v <= scan->range_max)
@@ -290,6 +286,10 @@ private:
     for (auto p : planner_->trajectory())
       path.poses.push_back(point(p.x, p.y));
     path_pub_->publish(path);
+    path.poses.clear();
+    for (auto p : planner_->reference())
+      path.poses.push_back(point(p.x, p.y));
+    reference_pub_->publish(path);
     if (have_odom_) {
       auto p = point(pose_.x, pose_.y);
       if (trajectory_.poses.empty() ||
@@ -327,6 +327,16 @@ private:
         << ",\"front\":" << number(sectors_.front.distance)
         << ",\"left\":" << number(sectors_.left.distance)
         << ",\"right\":" << number(sectors_.right.distance)
+        << ",\"side_sector_width_deg\":"
+        << number(map_parameters_.side_sector_degrees)
+        << ",\"front_sector_width_deg\":"
+        << number(map_parameters_.front_sector_degrees)
+        << ",\"guide_wall_segments\":" << map_->guide_walls().size()
+        << ",\"short_faces_ignored\":" << map_->scan_geometry().short_faces
+        << ",\"navigation_heading\":" << number(planner_->navigation_heading())
+        << ",\"dead_ends\":" << planner_->dead_ends()
+        << ",\"dead_end_front_distance\":"
+        << number(planner_->dead_end_front_distance())
         << ",\"odom_distance_m\":" << number(distance_)
         << ",\"minimum_laser_range_m\":" << number(min_scan_)
         << ",\"elapsed_sim_s\":"
@@ -339,14 +349,19 @@ private:
     status_pub_->publish(s);
   }
   const std::unordered_map<std::string, double CostmapParameters::*>
-      map_fields_{{"costmap_resolution", &CostmapParameters::resolution},
-                  {"costmap_size", &CostmapParameters::size},
-                  {"robot_radius", &CostmapParameters::robot_radius},
-                  {"inflation_margin", &CostmapParameters::safety_margin},
-                  {"soft_cost_radius", &CostmapParameters::soft_radius},
-                  {"laser_offset_x", &CostmapParameters::laser_x},
-                  {"laser_offset_y", &CostmapParameters::laser_y},
-                  {"laser_yaw", &CostmapParameters::laser_yaw}};
+      map_fields_{
+          {"costmap_resolution", &CostmapParameters::resolution},
+          {"costmap_size", &CostmapParameters::size},
+          {"robot_radius", &CostmapParameters::robot_radius},
+          {"inflation_margin", &CostmapParameters::safety_margin},
+          {"soft_cost_radius", &CostmapParameters::soft_radius},
+          {"laser_offset_x", &CostmapParameters::laser_x},
+          {"laser_offset_y", &CostmapParameters::laser_y},
+          {"laser_yaw", &CostmapParameters::laser_yaw},
+          {"side_sector_width_deg", &CostmapParameters::side_sector_degrees},
+          {"front_sector_width_deg", &CostmapParameters::front_sector_degrees},
+          {"minimum_wall_length", &CostmapParameters::minimum_wall_length},
+          {"wall_fit_tolerance", &CostmapParameters::wall_fit_tolerance}};
   const std::unordered_map<std::string, double LocalPlannerParameters::*>
       planner_fields_{
           {"max_linear_speed", &LocalPlannerParameters::max_speed},
@@ -370,6 +385,13 @@ private:
           {"heading_weight", &LocalPlannerParameters::heading_weight},
           {"clearance_weight", &LocalPlannerParameters::clearance_weight},
           {"speed_weight", &LocalPlannerParameters::speed_weight},
+          {"pursuit_lookahead", &LocalPlannerParameters::pursuit_lookahead},
+          {"pursuit_weight", &LocalPlannerParameters::pursuit_weight},
+          {"dead_end_distance", &LocalPlannerParameters::dead_end_distance},
+          {"dead_end_front_gap", &LocalPlannerParameters::dead_end_front_gap},
+          {"u_turn_speed", &LocalPlannerParameters::u_turn_speed},
+          {"u_turn_lookahead", &LocalPlannerParameters::u_turn_lookahead},
+          {"u_turn_horizon", &LocalPlannerParameters::u_turn_horizon},
           {"goal_x", &LocalPlannerParameters::goal_x},
           {"goal_y", &LocalPlannerParameters::goal_y},
           {"goal_tolerance", &LocalPlannerParameters::goal_tolerance}};
@@ -387,8 +409,8 @@ private:
   WallPoint progress_{};
   double start_x_{}, start_y_{}, start_yaw_{}, anchor_x_{}, anchor_y_{},
       rotation_{}, odom_x_{}, odom_y_{};
-  double timeout_{}, width_{}, robot_radius_{}, margin_{}, last_time_{},
-      started_{}, progress_time_{}, elapsed_{-1};
+  double timeout_{}, robot_radius_{}, margin_{}, last_time_{}, started_{},
+      progress_time_{}, elapsed_{-1};
   double distance_{}, max_command_{}, max_measured_{}, min_scan_{1e9},
       computation_ms_{}, max_computation_ms_{};
   bool have_odom_{}, have_scan_{}, valid_map_{}, running_{};
@@ -400,7 +422,8 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr command_pub_;
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr sectors_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_, trajectory_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_, reference_pub_,
+      trajectory_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr raw_pub_, map_pub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;

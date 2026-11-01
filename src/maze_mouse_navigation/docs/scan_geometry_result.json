@@ -1,0 +1,18 @@
+{
+  "algorithm": "laser_costmap",
+  "state": "COMPLETE",
+  "pose": [6.55846877, 5.63219307, 0.884121281],
+  "command_speed": 0,
+  "command_angular": 0,
+  "configured_max_speed": 0.8,
+  "configured_max_angular": 1.8,
+  "stopped_sim_s": 3.96,
+  "side_sector_width_deg": 60,
+  "front_sector_width_deg": 90,
+  "dead_ends": 2,
+  "dead_end_front_distance": 1.1440407,
+  "odom_distance_m": 30.1000766,
+  "minimum_laser_range_m": 0.20890297,
+  "elapsed_sim_s": 123.5,
+  "max_planner_ms": 3.467266
+}

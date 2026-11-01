@@ -32,4 +32,4 @@ source install/setup.zsh
 ros2 launch maze_mouse_navigation navigation.launch.py
 ```
 
-算法说明、参数和状态话题见 [导航功能包说明](src/maze_mouse_navigation/README.md)。默认控制器将实际雷达墙体按车体半径 0.14 m 加额外 0.04 m 间隙膨胀，使用局部路径与预测轨迹连续转弯；不加载预设路线或执行全局泛洪搜索。参数选择及整图 Gazebo 实测见 [调参记录](src/maze_mouse_navigation/docs/speed_tuning/README.md)。旧路口停车左墙控制器和泛洪控制器分别通过 `controller:=left_wall_follower`、`controller:=maze_navigator` 对照运行。
+算法说明、参数和状态话题见 [导航功能包说明](src/maze_mouse_navigation/README.md)。默认控制器使用左右 60°、前方 90° 雷达区域，将扫描拟合成连续长墙；墙体端面继续用于避障，但不作为跟随方向。控制器会提前识别死胡同并生成连续掉头曲线，不加载预设路线或执行全局泛洪搜索。旧路口停车左墙控制器和泛洪控制器分别通过 `controller:=left_wall_follower`、`controller:=maze_navigator` 对照运行。

@@ -9,15 +9,18 @@
     goal_x: 6.45
     goal_y: 5.5
     goal_tolerance: 0.14
-    max_linear_speed: 1.2
-    max_angular_speed: 2.0
+    max_linear_speed: 0.8
+    max_angular_speed: 1.8
     linear_acceleration: 0.8
     linear_deceleration: 1.0
     angular_acceleration: 3.0
     prediction_horizon: 0.75
     reaction_time: 0.2
     desired_left_distance: 0.28
-    sector_width_deg: 30.0
+    side_sector_width_deg: 60.0
+    front_sector_width_deg: 90.0
+    minimum_wall_length: 0.24
+    wall_fit_tolerance: 0.025
     data_timeout: 0.7
     costmap_resolution: 0.04
     costmap_size: 4.0
@@ -41,3 +44,10 @@
     speed_weight: 1.0
     linear_samples: 6
     angular_samples: 30
+    pursuit_lookahead: 0.40
+    pursuit_weight: 2.0
+    dead_end_distance: 1.15
+    dead_end_front_gap: 0.45
+    u_turn_speed: 0.22
+    u_turn_lookahead: 0.12
+    u_turn_horizon: 0.50

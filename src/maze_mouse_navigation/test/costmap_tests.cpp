@@ -347,3 +347,119 @@ TEST(CostmapPlanner, ReplacesTargetDisconnectedByNewLaserObstacle) {
   EXPECT_NE(controller.mode(), LocalMode::blocked);
   EXPECT_FALSE(controller.trajectory().empty());
 }
+
+namespace {
+std::vector<float> shape_scan(const WallPose &pose,
+                              const std::vector<Shape> &shapes) {
+  std::vector<float> ranges(360, std::numeric_limits<float>::infinity());
+  const double x = pose.x - .032 * std::cos(pose.yaw),
+               y = pose.y - .032 * std::sin(pose.yaw);
+  for (int i = 0; i < 360; ++i) {
+    const double a = pose.yaw + i * pi / 180;
+    double d = 100;
+    for (const auto &shape : shapes)
+      d = std::min(d, ray(shape, x, y, std::cos(a), std::sin(a)));
+    if (d >= .12 && d <= 3.5)
+      ranges[i] = d;
+  }
+  return ranges;
+}
+} // namespace
+TEST(ScanGeometry, IndependentSixtyAndNinetyDegreeCoverage) {
+  std::vector<float> scan(360, std::numeric_limits<float>::infinity());
+  const auto geometry = analyse_scan(scan, 0, pi / 180, .12, 3.5);
+  EXPECT_EQ(geometry.sectors.front.total, 91u);
+  EXPECT_EQ(geometry.sectors.left.total, 61u);
+  EXPECT_EQ(geometry.sectors.right.total, 61u);
+  EXPECT_TRUE(geometry.sectors.usable());
+}
+TEST(ScanGeometry, WallThicknessFaceIsNotAGuideButRemainsAnObstacle) {
+  const WallPose pose{};
+  const auto scan = shape_scan(pose, {{0, -1, .06, .5, false}});
+  const auto geometry = analyse_scan(scan, 0, pi / 180, .12, 3.5);
+  EXPECT_GT(geometry.short_faces, 0);
+  EXPECT_TRUE(geometry.walls.empty());
+  EXPECT_NEAR(geometry.sectors.right.minimum_range, .5, .02);
+  EXPECT_DOUBLE_EQ(geometry.sectors.right.distance, 3.5);
+  LocalCostmap map;
+  ASSERT_TRUE(map.update(pose, scan, 0, pi / 180, .12, 3.5));
+  EXPECT_LT(map.clearance(0, -.49), .1);
+  EXPECT_FALSE(map.traversable(0, -.4));
+  CostmapFollower follower;
+  const auto command =
+      follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+  EXPECT_TRUE(follower.reference().empty());
+  EXPECT_DOUBLE_EQ(command.linear, 0);
+}
+TEST(CostmapPlanner, RightOpeningDoesNotBreakLeftWallHeading) {
+  const std::vector<Shape> walls{{0, .56, 3, .06, false},
+                                 {-1.8, -.56, 1.4, .06, false},
+                                 {1.8, -.56, 1.4, .06, false}};
+  LocalCostmap map;
+  CostmapFollower follower;
+  for (double x : {-.6, -.3, 0., .3, .6}) {
+    const WallPose pose{x, .1, 0, 0, .25};
+    ASSERT_TRUE(
+        map.update(pose, shape_scan(pose, walls), 0, pi / 180, .12, 3.5));
+    const auto cmd =
+        follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+    ASSERT_GE(follower.reference().size(), 2u) << x;
+    EXPECT_GT(follower.reference().back().x, x + .6) << x;
+    EXPECT_LT(std::abs(follower.desired_yaw()), .25) << x;
+    EXPECT_GT(cmd.linear, .1) << x;
+    EXPECT_EQ(follower.dead_ends(), 0);
+  }
+}
+TEST(CostmapPlanner, RecognisesDeadEndOneMetreAwayAndPlansCompleteArc) {
+  const WallPose pose{};
+  const std::vector<Shape> walls{{-.5, .56, 1.56, .06, false},
+                                 {-.5, -.56, 1.56, .06, false},
+                                 {1.06, 0, .06, .62, false}};
+  LocalCostmap map;
+  ASSERT_TRUE(map.update(pose, shape_scan(pose, walls), 0, pi / 180, .12, 3.5));
+  CostmapFollower follower;
+  follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+  ASSERT_EQ(follower.mode(), LocalMode::u_turn);
+  EXPECT_EQ(follower.dead_ends(), 1);
+  EXPECT_GT(follower.dead_end_front_distance(), .9);
+  ASSERT_GT(follower.reference().size(), 40u);
+  double farthest = 0;
+  for (const auto &p : follower.reference()) {
+    EXPECT_TRUE(map.traversable(p.x, p.y));
+    farthest = std::max(farthest, p.x);
+  }
+  EXPECT_LT(farthest, .65);
+  EXPECT_LT(follower.reference().back().x, 0);
+  EXPECT_LT(follower.reference().back().y, -.1);
+}
+TEST(CostmapPlanner, LeftOpeningBeforeEndWallIsNotADeadEnd) {
+  const WallPose pose{};
+  const std::vector<Shape> walls{{-1, .56, 1.25, .06, false},
+                                 {-.5, -.56, 1.56, .06, false},
+                                 {1.06, 0, .06, .62, false}};
+  LocalCostmap map;
+  ASSERT_TRUE(map.update(pose, shape_scan(pose, walls), 0, pi / 180, .12, 3.5));
+  CostmapFollower follower;
+  follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+  EXPECT_NE(follower.mode(), LocalMode::u_turn);
+  EXPECT_EQ(follower.dead_ends(), 0);
+}
+
+TEST(CostmapPlanner, OffCentreAngledEntryRecognisesSecondDeadEndEarly) {
+  // Pose measured at the second U-turn entry in Gazebo. Use the real world
+  // geometry so this protects the marked location rather than an ideal box.
+  const WallPose pose{2.93, 5.64, -.075, 0, .25};
+  const auto walls = load_world();
+  CostmapParameters m;
+  m.resolution = .04;
+  m.safety_margin = .04;
+  LocalCostmap map(m);
+  ASSERT_TRUE(map.update(pose, shape_scan(pose, walls), 0, pi / 180, .12, 3.5));
+  LocalPlannerParameters p;
+  p.wall_distance = .28;
+  p.max_angular = 2.;
+  CostmapFollower follower(p);
+  follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+  EXPECT_EQ(follower.mode(), LocalMode::u_turn);
+  EXPECT_GT(follower.dead_end_front_distance(), .90);
+}
