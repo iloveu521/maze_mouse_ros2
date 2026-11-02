@@ -455,7 +455,7 @@ TEST(CostmapController, SpeedPreviewAndAngularSlewPreventSteeringJump) {
       follower.step(pose, map.scan_geometry().sectors, map, .05, true);
   EXPECT_LE(std::abs(second.angular - first.angular), .125 + 1e-6);
 }
-TEST(CostmapPlanner, RecognisesDeadEndOneMetreAwayAndPlansCompleteArc) {
+TEST(CostmapPlanner, RecognisesDeadEndEarlyAndTurnsInPlace) {
   const WallPose pose{};
   const std::vector<Shape> walls{{-.5, .56, 1.56, .06, false},
                                  {-.5, -.56, 1.56, .06, false},
@@ -463,19 +463,13 @@ TEST(CostmapPlanner, RecognisesDeadEndOneMetreAwayAndPlansCompleteArc) {
   LocalCostmap map;
   ASSERT_TRUE(map.update(pose, shape_scan(pose, walls), 0, pi / 180, .12, 3.5));
   CostmapFollower follower;
-  follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+  const auto command =
+      follower.step(pose, map.scan_geometry().sectors, map, .05, true);
   ASSERT_EQ(follower.mode(), LocalMode::u_turn);
   EXPECT_EQ(follower.dead_ends(), 1);
   EXPECT_GT(follower.dead_end_front_distance(), .9);
-  ASSERT_GT(follower.reference().size(), 40u);
-  double farthest = 0;
-  for (const auto &p : follower.reference()) {
-    EXPECT_TRUE(map.traversable(p.x, p.y));
-    farthest = std::max(farthest, p.x);
-  }
-  EXPECT_LT(farthest, .65);
-  EXPECT_LT(follower.reference().back().x, 0);
-  EXPECT_LT(follower.reference().back().y, -.1);
+  EXPECT_DOUBLE_EQ(command.linear, 0.0);
+  EXPECT_NEAR(std::abs(command.angular), .125, 1e-6);
 }
 TEST(CostmapPlanner, LeftOpeningBeforeEndWallIsNotADeadEnd) {
   const WallPose pose{};

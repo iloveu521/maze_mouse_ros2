@@ -550,7 +550,7 @@ const char *local_mode_name(LocalMode m) {
   case LocalMode::recovering:
     return "RECOVER_CLEARANCE";
   case LocalMode::u_turn:
-    return "U_TURN";
+    return "DEAD_END_ROTATE";
   case LocalMode::exiting:
     return "EXITING";
   case LocalMode::complete:
@@ -574,6 +574,7 @@ CostmapFollower::CostmapFollower(LocalPlannerParameters p) : p_(p) {
       p.lateral_gain, p.curvature_feedforward, p.max_lateral_acceleration,
       p.angular_command_acceleration, p.angular_filter_time_constant,
       p.pursuit_weight, p.dead_end_distance, p.dead_end_front_gap,
+      p.dead_end_side_opening,
       p.u_turn_speed, p.u_turn_lookahead, p.u_turn_horizon};
   if (!std::all_of(values.begin(), values.end(),
                    [](double v) { return std::isfinite(v) && v > 0; }) ||
@@ -825,29 +826,45 @@ std::vector<WallPoint> CostmapFollower::refresh_reference(
   return active;
 }
 std::vector<WallPoint> CostmapFollower::dead_end_path(const WallPose &pose,
+                                                      const Sectors &sectors,
                                                       const LocalCostmap &map) {
+  turn_in_place_ = false;
   if (std::abs(pose.angular_speed) > 1.0)
     return {};
+  const double lane_yaw = have_guide_yaw_ ? guide_yaw_ : pose.yaw;
+  const double fx = std::cos(lane_yaw), fy = std::sin(lane_yaw);
+  auto world = [&](double x, double y) {
+    return WallPoint{pose.x + x * fx - y * fy,
+                     pose.y + x * fy + y * fx};
+  };
   for (const auto &cap : map.guide_walls()) {
     double heading = std::atan2(cap.b.y - cap.a.y, cap.b.x - cap.a.x) + pi / 2;
-    if (std::cos(heading - pose.yaw) < 0)
+    if (std::cos(heading - lane_yaw) < 0)
       heading = wrap_angle(heading + pi);
-    if (std::abs(wrap_angle(heading - pose.yaw)) > .65)
+    if (std::abs(wrap_angle(heading - lane_yaw)) > .55)
       continue;
-    const double fx = std::cos(heading), fy = std::sin(heading);
+    const double hfx = std::cos(heading), hfy = std::sin(heading);
     auto local = [&](WallPoint p) {
       const double x = p.x - pose.x, y = p.y - pose.y;
-      return WallPoint{x * fx + y * fy, -x * fy + y * fx};
-    };
-    auto world = [&](double x, double y) {
-      return WallPoint{pose.x + x * fx - y * fy, pose.y + x * fy + y * fx};
+      return WallPoint{x * hfx + y * hfy, -x * hfy + y * hfx};
     };
     const auto a = local(cap.a), b = local(cap.b);
     const double front = (a.x + b.x) / 2;
-    if (std::abs(a.x - b.x) > .10 * cap.length() || front < .45 ||
+    const WallPoint cap_center{(cap.a.x + cap.b.x) / 2,
+                               (cap.a.y + cap.b.y) / 2};
+    if (std::abs(a.x - b.x) > .10 * cap.length() ||
+        front < p_.dead_end_front_gap ||
         front > p_.dead_end_distance || std::min(a.y, b.y) > -.22 ||
         std::max(a.y, b.y) < .22)
       continue;
+    if (have_handled_cap_ &&
+        std::hypot(cap_center.x - handled_cap_.x,
+                   cap_center.y - handled_cap_.y) < .55)
+      continue;
+
+    // Require a real corridor to the cap. Open side space means this is an
+    // intersection: leave the decision to the wall contour so it can take the
+    // side passage instead of entering the capped lane.
     struct Side {
       double y, lo, hi;
     };
@@ -880,65 +897,37 @@ std::vector<WallPoint> CostmapFollower::dead_end_path(const WallPose &pose,
     if (left == 1e9 || right == -1e9 || left - right > 1.25 ||
         std::min(a.y, b.y) > right + .14 || std::max(a.y, b.y) < left - .14)
       continue;
-    const double margin =
-        map.hard_radius() + std::sqrt(2.0) * map.resolution() + .045;
-    const double hi = left - margin, lo = right + margin;
-    const double radius = (hi - lo) / 2;
-    if (radius < .07 || radius > .4)
+    if (sectors.left.distance > p_.dead_end_side_opening + .13 ||
+        sectors.right.distance > p_.dead_end_side_opening + .13)
       continue;
-    const double entry = std::max(.12, front - p_.dead_end_front_gap - radius);
+    // A confirmed two-sided corridor with a cap is a dead end. Rotate at the
+    // current pose and follow the observed entrance back out.
     std::vector<WallPoint> path;
-    // Tangent-continuous entry blend, right semicircle, then an exit straight.
-    for (int i = 0; i <= 24; ++i) {
-      const double t = i / 24.0, u = 1 - t;
-      const double x = 3 * u * u * t * std::min(.10, entry * .3) *
-                           std::cos(pose.yaw - heading) +
-                       3 * u * t * t * entry * .5 + t * t * t * entry;
-      const double y = 3 * u * u * t * std::min(.10, entry * .3) *
-                           std::sin(pose.yaw - heading) +
-                       (3 * u * t * t + t * t * t) * hi;
-      path.push_back(world(x, y));
-    }
-    for (int i = 1; i <= 40; ++i) {
-      const double a = pi * i / 40;
-      path.push_back(
-          world(entry + radius * std::sin(a), hi - radius * (1 - std::cos(a))));
-    }
-    for (int i = 1; i <= 20; ++i) {
-      const double t = i / 20.;
-      const double exit_lane =
-          std::clamp(right + p_.wall_distance + p_.wall_offset, lo, hi);
-      path.push_back(
-          world(entry - .5 * t, lo + (exit_lane - lo) * t * t * (3 - 2 * t)));
-    }
-    // The entry, semicircle, and exit meet with matching tangents, but their
-    // sampled curvature changes abruptly. Smooth the joins while keeping both
-    // endpoints fixed, accepting a point only when its neighboring segments
-    // remain inside the observed inflated-free corridor.
-    for (int pass = 0; pass < 32; ++pass) {
-      const auto previous = path;
-      for (std::size_t i = 1; i + 1 < path.size(); ++i) {
-        const WallPoint q{.2 * previous[i - 1].x + .6 * previous[i].x +
-                              .2 * previous[i + 1].x,
-                          .2 * previous[i - 1].y + .6 * previous[i].y +
-                              .2 * previous[i + 1].y};
-        if (map.traversable(q.x, q.y) &&
-            map.line_clear(previous[i - 1], q) &&
-            map.line_clear(q, previous[i + 1]))
-          path[i] = q;
+    for (double length = std::min(1.8, p_.dead_end_distance); length >= .40;
+         length -= .10) {
+      path.clear();
+      const int points = std::max(12, static_cast<int>(length / .04));
+      for (int i = 0; i <= points; ++i) {
+        const double distance = length * i / points;
+        path.push_back(world(-distance, 0));
       }
-    }
-    bool clear = true;
-    for (std::size_t i = 0; i < path.size(); ++i)
-      if (!map.traversable(path[i].x, path[i].y) ||
-          (i > 0 && !map.line_clear(path[i - 1], path[i]))) {
-        clear = false;
-        break;
+      bool clear = map.traversable(pose.x, pose.y);
+      for (std::size_t i = 1; clear && i < path.size(); ++i)
+        clear = map.line_clear(path[i - 1], path[i]);
+      if (clear) {
+        dead_end_front_distance_ = front;
+        ++dead_ends_;
+        have_handled_cap_ = true;
+        handled_cap_ = cap_center;
+        turn_in_place_ = true;
+        turn_heading_ = wrap_angle(lane_yaw + pi);
+        previous_command_angular_ = 0;
+        filtered_target_angular_ = 0;
+        heading_integral_ = 0;
+        filtered_derivative_ = 0;
+        have_control_error_ = false;
+        return path;
       }
-    if (clear) {
-      dead_end_front_distance_ = front;
-      ++dead_ends_;
-      return path;
     }
   }
   return {};
@@ -970,6 +959,10 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   }
   const double goal_distance =
       std::hypot(p_.goal_x - pose.x, p_.goal_y - pose.y);
+  if (have_handled_cap_ &&
+      std::hypot(handled_cap_.x - pose.x, handled_cap_.y - pose.y) >
+          p_.dead_end_distance + .5)
+    have_handled_cap_ = false;
   if (goal_distance < p_.goal_tolerance) {
     mode_ = LocalMode::complete;
     previous_command_angular_ = 0;
@@ -1044,7 +1037,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   } else {
     mode_ = LocalMode::following;
     if (turn_path_.empty()) {
-      turn_path_ = dead_end_path(pose, map);
+      turn_path_ = dead_end_path(pose, s, map);
       turn_index_ = 0;
     }
     if (!turn_path_.empty()) {
@@ -1078,6 +1071,38 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     }
     if (turn_path_.empty())
       candidate_reference = wall_reference(pose, map);
+  }
+  if (turn_in_place_) {
+    const double error = wrap_angle(turn_heading_ - pose.yaw);
+    if (std::abs(error) < .07) {
+      turn_in_place_ = false;
+      turn_path_.clear();
+      turn_index_ = 0;
+      guide_yaw_ = turn_heading_;
+      mode_ = LocalMode::following;
+      have_anchor_ = false;
+      previous_command_angular_ = 0;
+      filtered_target_angular_ = 0;
+      heading_integral_ = 0;
+      filtered_derivative_ = 0;
+      have_control_error_ = false;
+      candidate_reference = wall_reference(pose, map);
+    } else {
+      dt = std::clamp(dt, .01, .1);
+      double angular = std::clamp(2.8 * error, -p_.max_angular,
+                                  p_.max_angular);
+      if (std::abs(error) > .15 && std::abs(angular) < .45)
+        angular = std::copysign(.45, error);
+      const double delta = p_.angular_command_acceleration * dt;
+      angular = std::clamp(angular, previous_command_angular_ - delta,
+                           previous_command_angular_ + delta);
+      previous_command_angular_ = angular;
+      filtered_target_angular_ = angular;
+      heading_integral_ = 0;
+      have_control_error_ = false;
+      mode_ = LocalMode::u_turn;
+      return {0, angular};
+    }
   }
   reference_ = refresh_reference(std::move(candidate_reference), pose, map);
   if (reference_.size() < 2) {

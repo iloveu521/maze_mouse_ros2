@@ -75,7 +75,8 @@ struct LocalPlannerParameters {
   double max_lateral_acceleration{0.65}, angular_command_acceleration{2.5};
   double angular_filter_time_constant{0.18};
   double pursuit_weight{4.0};
-  double dead_end_distance{1.15}, dead_end_front_gap{0.45};
+  double dead_end_distance{2.35}, dead_end_front_gap{0.20};
+  double dead_end_side_opening{1.25};
   double u_turn_speed{0.22}, u_turn_lookahead{0.20}, u_turn_horizon{0.50};
   double goal_x{6.45}, goal_y{5.5}, goal_tolerance{0.14};
 };
@@ -109,7 +110,8 @@ public:
 
 private:
   std::vector<WallPoint> wall_reference(const WallPose &, const LocalCostmap &);
-  std::vector<WallPoint> dead_end_path(const WallPose &, const LocalCostmap &);
+  std::vector<WallPoint> dead_end_path(const WallPose &, const Sectors &,
+                                       const LocalCostmap &);
   std::vector<WallPoint> refresh_reference(std::vector<WallPoint> candidate,
                                            const WallPose &pose,
                                            const LocalCostmap &map);
@@ -126,6 +128,10 @@ private:
   int moving_candidates_{};
   std::vector<WallPoint> turn_path_;
   std::size_t turn_index_{};
+  bool turn_in_place_{};
+  double turn_heading_{};
+  bool have_handled_cap_{};
+  WallPoint handled_cap_{};
   int dead_ends_{};
   double dead_end_front_distance_{};
   double guide_yaw_{};

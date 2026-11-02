@@ -59,8 +59,9 @@
     angular_command_acceleration: 2.5
     angular_filter_time_constant: 0.18
     pursuit_weight: 4.0
-    dead_end_distance: 1.15
-    dead_end_front_gap: 0.45
+    dead_end_distance: 2.35
+    dead_end_front_gap: 0.20
+    dead_end_side_opening: 1.25
     u_turn_speed: 0.22
     u_turn_lookahead: 0.20
     u_turn_horizon: 0.50

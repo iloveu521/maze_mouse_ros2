@@ -415,6 +415,8 @@ private:
           {"pursuit_weight", &LocalPlannerParameters::pursuit_weight},
           {"dead_end_distance", &LocalPlannerParameters::dead_end_distance},
           {"dead_end_front_gap", &LocalPlannerParameters::dead_end_front_gap},
+          {"dead_end_side_opening",
+           &LocalPlannerParameters::dead_end_side_opening},
           {"u_turn_speed", &LocalPlannerParameters::u_turn_speed},
           {"u_turn_lookahead", &LocalPlannerParameters::u_turn_lookahead},
           {"u_turn_horizon", &LocalPlannerParameters::u_turn_horizon},
