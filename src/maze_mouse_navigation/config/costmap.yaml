@@ -1,5 +1,6 @@
 # Gazebo-tuned profile. Speeds: m/s, rad/s; distances: m; times: s.
-# Inflation includes the unchanged 0.14 m body radius plus 0.04 m clearance.
+# Hard inflation is the 0.14 m body radius plus 0.02 m clearance; the soft-cost
+# band extends 0.10 m beyond that hard boundary.
 /maze_navigator:
   ros__parameters:
     use_sim_time: true
@@ -9,7 +10,7 @@
     goal_x: 5.45
     goal_y: 3.49
     goal_tolerance: 0.14
-    max_linear_speed: 0.8
+    max_linear_speed: 0.5
     max_angular_speed: 1.8
     linear_acceleration: 0.8
     linear_deceleration: 1.0
@@ -23,10 +24,10 @@
     wall_fit_tolerance: 0.025
     data_timeout: 0.7
     costmap_resolution: 0.04
-    costmap_size: 4.0
+    costmap_size: 8.0
     robot_radius: 0.14
-    inflation_margin: 0.04
-    soft_cost_radius: 0.38
+    inflation_margin: 0.02
+    soft_cost_radius: 0.26
     laser_offset_x: -0.032
     laser_offset_y: 0.0
     laser_yaw: 0.0
@@ -59,9 +60,9 @@
     angular_command_acceleration: 2.5
     angular_filter_time_constant: 0.18
     pursuit_weight: 4.0
-    dead_end_distance: 2.35
+    dead_end_distance: 3.0
     dead_end_front_gap: 0.20
-    dead_end_side_opening: 1.25
+    dead_end_side_opening: 0.75
     u_turn_speed: 0.22
     u_turn_lookahead: 0.20
     u_turn_horizon: 0.50

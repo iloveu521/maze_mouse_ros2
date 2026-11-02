@@ -19,11 +19,11 @@ Bash 使用 `setup.bash`。无界面追加 `gui:=false rviz:=false`；已有仿�
 
 扫描点按激光安装偏移和里程计转换到局部固定坐标，射线清除可见自由空间，命中点累积占据证据；地图随车辆滚动，重叠区域保留。未知区域不参与正常路径规划。
 
-墙体膨胀包含 **车体包络半径 0.14 m + 额外间隙 0.04 m = 0.18 m**。软代价范围从 0.55 m 缩至 0.38 m，地图分辨率从 0.05 m 改为 0.04 m。0.88 m 通道内，扣除两侧硬膨胀后供车体中心选择的名义宽度从 0.40 m 增至 0.52 m；离散化与距离插值仍额外采用保守补偿。
+硬膨胀设为 **车体包络半径 0.14 m + 额外间隙 0.02 m = 0.16 m**；软代价只延伸至 0.26 m，即硬边界外 0.10 m。0.88 m 通道内，扣除两侧硬膨胀后供车体中心选择的名义宽度为 0.56 m。局部滚动地图扩至 8×8 m，覆盖 3.5 m 雷达扫描的完整圆形范围，分辨率保持 0.04 m。
 
 ## 连续控制
 
-1. 沿拟合后的连续左墙生成偏置参考曲线，并保存行进方向；右侧出现岔路时继续沿左墙通过，恢复避障后也回到原来的行进方向。控制器不加载 world、迷宫连通图或预设解答。
+1. 沿拟合后的连续左墙生成偏置参考曲线，并保存行进方向；右侧出现岔路时继续沿左墙通过，恢复避障后也回到原来的行进方向。若扫描边界短暂跳到反向轮廓，会拒绝该候选并继续跟随有效缓存路径；只有确认死胡同才执行掉头。控制器不加载 world、迷宫连通图或预设解答。
 2. 参考曲线放入滚动缓存。每次新扫描检查当前前方路径，仍安全时保留原曲线；接近曲线尾端时，才将新扫描生成的曲线拼到旧曲线尾端。新障碍挡住当前曲线时立即重置受影响段。
 3. Pure Pursuit 沿曲线弧长取自适应前瞻点，曲线曲率提供转向前馈，横向与航向 PID 修正里程计跟踪误差；角速度经滤波与变化率限制。普通通道前瞻上限为 0.90 m，弯道按预测曲率限速。
 4. 绿色参考曲线是跟踪目标。控制器围绕 Pure Pursuit 转向指令筛选通过碰撞检查的速度和角速度，并预测反应延迟及制动过程；短时指令轨迹只作安全校验，不作为新的路径目标，也不在 RViz 默认显示。
@@ -47,7 +47,7 @@ ros2 launch maze_mouse_navigation navigation.launch.py params:=$PWD/src/maze_mou
 ```zsh
 ros2 param set /maze_navigator max_linear_speed 1.0
 ros2 param set /maze_navigator max_angular_speed 1.8
-ros2 param set /maze_navigator inflation_margin 0.04
+ros2 param set /maze_navigator inflation_margin 0.02
 ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 ```
 
@@ -55,7 +55,7 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
-| `max_linear_speed` | 0.8 m/s | Gazebo 复测配置；转弯和避障时自动降低 |
+| `max_linear_speed` | 0.5 m/s | Gazebo 复测配置；转弯和避障时自动降低 |
 | `max_angular_speed` | 1.8 rad/s | 角速度上限 |
 | `pursuit_lookahead` / `pursuit_lookahead_gain` / `pursuit_lookahead_max` | 0.60 m / 0.35 s / 0.90 m | 随速度增加的几何前瞻及上限，沿曲线弧长取点 |
 | `path_preview_distance` | 1.20 m | 路径曲率前馈的预览长度 |
@@ -65,10 +65,10 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 | `max_lateral_acceleration` | 0.65 m/s² | 预测弯道线速度上限 |
 | `angular_command_acceleration` / `angular_filter_time_constant` | 2.5 rad/s² / 0.18 s | 角速度指令变化限制和一阶滤波 |
 
-| `costmap_resolution` / `costmap_size` | 0.04 m / 4.0 m | 滚动地图精度与边长 |
+| `costmap_resolution` / `costmap_size` | 0.04 m / 8.0 m | 滚动地图精度与边长；覆盖 3.5 m 雷达量程 |
 | `robot_radius` | 0.14 m | 车体圆形包络半径 |
-| `inflation_margin` | 0.04 m | 在车体之外增加的墙边间隙 |
-| `soft_cost_radius` | 0.38 m | 渐变墙边代价的范围 |
+| `inflation_margin` | 0.02 m | 在车体之外增加的硬安全间隙 |
+| `soft_cost_radius` | 0.26 m | 硬膨胀边界外 0.10 m 的渐变代价范围 |
 | `desired_left_distance` | 0.28 m | 用于追踪左墙方向的偏置轮廓；非强制行驶距离 |
 | `prediction_horizon` / `reaction_time` | 0.75 s / 0.20 s | 轨迹预测与延迟预算 |
 | `linear_acceleration` / `linear_deceleration` | 0.8 / 1.0 m/s² | 预测模型的加减速能力 |
@@ -84,8 +84,8 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 | `laser_offset_x` | -0.032 m | Burger 激光相对车体中心的纵向偏移 |
 | `side_sector_width_deg` / `front_sector_width_deg` | 60° / 90° | 左右墙面与前方死胡同观察范围 |
 | `minimum_wall_length` / `wall_fit_tolerance` | 0.24 m / 0.025 m | 可跟随长墙的最短长度与直线拟合容差 |
-| `dead_end_distance` / `dead_end_front_gap` / `dead_end_side_opening` | 2.35 m / 0.20 m / 1.25 m | 远距识别封闭走廊；有侧向开口时继续沿墙体轮廓选择支路，确认两侧受限且前方封闭后原地转向 |
-| `u_turn_speed` / `u_turn_lookahead` | 0.22 m/s / 0.12 m | 原地旋转后的退出速度上限与路径前瞻 |
+| `dead_end_distance` / `dead_end_front_gap` / `dead_end_side_opening` | 3.0 m / 0.20 m / 0.75 m | 在雷达有效范围内提前识别封闭走廊；有侧向开口时沿墙体轮廓选择支路 |
+| `u_turn_speed` / `u_turn_lookahead` | 0.22 m/s / 0.20 m | 原地旋转后的退出速度上限与路径前瞻 |
 | `data_timeout` | 0.7 s | 传感器超时 |
 
 控制器围绕绿色滚动参考曲线的 Pure Pursuit 转向指令做短时安全筛选，RViz 默认不显示被选中的短时指令轨迹，只显示绿色参考路径和蓝色实际轨迹。缓存路径在前方仍有效时保持不变，接近尾部时与新扫描生成的局部路径拼接，发现前方路径被新障碍挡住则重置该段。

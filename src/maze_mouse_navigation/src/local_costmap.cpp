@@ -663,6 +663,8 @@ CostmapFollower::wall_reference(const WallPose &pose, const LocalCostmap &map) {
     map.boundary_path(intent, p_.wall_distance, anchor_, have_anchor_);
     return straight;
   }
+  const auto previous_anchor = anchor_;
+  const bool previously_had_anchor = have_anchor_;
   auto path =
       map.boundary_path(intent, p_.wall_distance, anchor_, have_anchor_);
   if (path.size() < 2)
@@ -708,6 +710,29 @@ CostmapFollower::wall_reference(const WallPose &pose, const LocalCostmap &map) {
     if (result.empty() ||
         std::hypot(q.x - result.back().x, q.y - result.back().y) > .015)
       result.push_back(q);
+  }
+  // A contour edge can jump to the opposite side of a corner when sparse
+  // scan coverage changes the nearest boundary seed. Keep the established
+  // travel direction; real 180-degree reversals are handled by dead_end_path.
+  if (result.size() >= 5) {
+    const auto &a = result.front();
+    const auto &b = result[std::min<std::size_t>(8, result.size() - 1)];
+    const double candidate_yaw = std::atan2(b.y - a.y, b.x - a.x);
+    if (std::cos(wrap_angle(candidate_yaw - intent.yaw)) < -0.25) {
+      anchor_ = previous_anchor;
+      have_anchor_ = previously_had_anchor;
+      // A sparse scan can briefly make the contour seed jump to the other
+      // side of a corner. Do not stop and discard the route immediately: keep
+      // advancing along the established lane heading by the longest short,
+      // collision-checked segment, then rebuild the contour on the next scan.
+      for (double distance = .40; distance >= .10; distance -= .05) {
+        const WallPoint ahead{pose.x + distance * std::cos(intent.yaw),
+                              pose.y + distance * std::sin(intent.yaw)};
+        if (map.line_clear({pose.x, pose.y}, ahead))
+          return {{pose.x, pose.y}, ahead};
+      }
+      return {};
+    }
   }
   return result;
 }
