@@ -132,6 +132,19 @@ TEST(Costmap, BodyRadiusAndExtraTenCentimetresAreBothInflated) {
   const auto costs = padded.cost_data();
   EXPECT_NE(std::find(costs.begin(), costs.end(), 100), costs.end());
 }
+TEST(Costmap, ZeroSoftRadiusPublishesOnlyHardObstacles) {
+  CostmapParameters parameters;
+  parameters.soft_radius = 0;
+  LocalCostmap map(parameters);
+  const WallPose pose{};
+  const auto scan = wall_scan(pose, 1.0);
+  ASSERT_TRUE(map.update(pose, scan, 0, pi / 180, 0.12, 3.5));
+  const auto costs = map.cost_data();
+  EXPECT_NE(std::find(costs.begin(), costs.end(), 100), costs.end());
+  EXPECT_TRUE(std::all_of(costs.begin(), costs.end(), [](std::int8_t value) {
+    return value == -1 || value == 0 || value == 100;
+  }));
+}
 TEST(Costmap, InvalidScanDoesNotCreateFreeSpaceAndUnknownIsNotTraversable) {
   LocalCostmap map;
   std::vector<float> invalid(360, std::numeric_limits<float>::quiet_NaN());

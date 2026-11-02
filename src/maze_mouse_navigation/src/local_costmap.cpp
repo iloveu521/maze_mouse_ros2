@@ -37,14 +37,14 @@ std::vector<double> distance_transform(const std::vector<double> &f) {
 }
 } // namespace
 LocalCostmap::LocalCostmap(CostmapParameters p) : p_(p) {
-  const std::array positive{p.resolution, p.size, p.robot_radius,
-                            p.soft_radius};
+  const std::array positive{p.resolution, p.size, p.robot_radius};
   if (!std::all_of(positive.begin(), positive.end(),
                    [](double v) { return std::isfinite(v) && v > 0; }) ||
       !std::isfinite(p.safety_margin) || p.safety_margin < 0 || p.size < 1 ||
       p.size / p.resolution > 400 || !std::isfinite(p.laser_x) ||
       !std::isfinite(p.laser_y) || !std::isfinite(p.laser_yaw) ||
-      p.soft_radius <= hard_radius() ||
+      !std::isfinite(p.soft_radius) || p.soft_radius < 0 ||
+      (p.soft_radius > 0 && p.soft_radius <= hard_radius()) ||
       !(p.side_sector_degrees > 0 && p.side_sector_degrees <= 180) ||
       !(p.front_sector_degrees > 0 && p.front_sector_degrees <= 180) ||
       !(p.minimum_wall_length > 0 && std::isfinite(p.minimum_wall_length)) ||
@@ -337,10 +337,8 @@ std::vector<WallPoint> LocalCostmap::route(WallPoint start,
         const int j = y * n_ + x;
         if (!line_clear(point(i), point(j)))
           continue;
-        const double d = clearance(point(j).x, point(j).y);
         const double cost =
-            costs[i] + p_.resolution * std::hypot(dx, dy) *
-                           (1 + 4.0 * std::exp(-20 * (d - hard_radius())));
+            costs[i] + p_.resolution * std::hypot(dx, dy);
         if (cost < costs[j]) {
           costs[j] = cost;
           parents[j] = i;
@@ -366,8 +364,7 @@ std::vector<WallPoint> LocalCostmap::route(WallPoint start,
         const int steps =
             std::max(1, static_cast<int>(std::ceil(length / 0.01)));
         bool comfortable = true;
-        const double required = std::min(
-            hard_radius() + 0.055, clearance(path[i].x, path[i].y) - 0.002);
+        const double required = hard_radius();
         for (int k = 1; k <= steps; ++k) {
           const double t = static_cast<double>(k) / steps;
           if (clearance(path[i].x + t * (path[j].x - path[i].x),
@@ -537,9 +534,10 @@ std::vector<std::int8_t> LocalCostmap::cost_data() const {
     if (d <= hard_radius())
       out[i] = 100;
     else if (seen_[i])
-      out[i] = d < p_.soft_radius ? static_cast<std::int8_t>(
-                                        90 * std::exp(-8 * (d - hard_radius())))
-                                  : 0;
+      out[i] = p_.soft_radius > 0 && d < p_.soft_radius
+                   ? static_cast<std::int8_t>(
+                         90 * std::exp(-8 * (d - hard_radius())))
+                   : 0;
   }
   return out;
 }
@@ -567,7 +565,7 @@ CostmapFollower::CostmapFollower(LocalPlannerParameters p) : p_(p) {
       p.wall_distance,    p.goal_tolerance,       p.target_lookahead,
       p.target_tolerance, p.recovery_speed,       p.heading_stop_angle,
       p.progress_weight,  p.path_weight,          p.heading_weight,
-      p.clearance_weight, p.speed_weight,         p.pursuit_lookahead,
+      p.speed_weight,     p.pursuit_lookahead,
       p.pursuit_lookahead_gain, p.pursuit_lookahead_max,
       p.path_preview_distance, p.path_refresh_distance,
       p.path_validation_distance, p.heading_kp, p.heading_ki, p.heading_kd,
@@ -578,6 +576,7 @@ CostmapFollower::CostmapFollower(LocalPlannerParameters p) : p_(p) {
       p.u_turn_speed, p.u_turn_lookahead, p.u_turn_horizon};
   if (!std::all_of(values.begin(), values.end(),
                    [](double v) { return std::isfinite(v) && v > 0; }) ||
+      !std::isfinite(p.clearance_weight) || p.clearance_weight < 0 ||
       !std::isfinite(p.reaction_time) || p.reaction_time < 0 ||
       p.horizon <= p.reaction_time ||
       p.dead_end_front_gap >= p.dead_end_distance ||
@@ -1471,7 +1470,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         candidates.end());
     for (const double w : candidates) {
       WallPose predicted = pose;
-      double clearance = 100, penalty = 0;
+      double clearance = 100;
       bool valid = true;
       std::vector<WallPoint> path;
       constexpr double step = 0.04;
@@ -1501,12 +1500,11 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         predicted.yaw =
             wrap_angle(predicted.yaw + predicted.angular_speed * step);
         const double d = map.clearance(predicted.x, predicted.y);
-        if (d <= std::min(map.hard_radius(), initial_clearance - 0.002)) {
+        if (d <= map.hard_radius()) {
           valid = false;
           break;
         }
         clearance = std::min(clearance, d);
-        penalty += std::exp(-8 * std::max(0.0, d - map.hard_radius()));
         path.push_back({predicted.x, predicted.y});
       }
       if (!valid || path.empty())
@@ -1522,7 +1520,6 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
           -p_.progress_weight * std::clamp(end[1] - projected[1], -.25, 1.0) +
           p_.path_weight * end[0] +
           p_.heading_weight * std::abs(wrap_angle(end[2] - predicted.yaw)) +
-          0.5 * penalty / path.size() +
           p_.clearance_weight *
               std::exp(-40 * (clearance - map.hard_radius())) +
           p_.speed_weight * (p_.max_speed - v) +
@@ -1530,8 +1527,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
           p_.pursuit_weight * std::abs(w - desired_w);
       if (v > .005 && end[1] - projected[1] > .005 &&
           std::abs(w - limited_w) < 1e-5 && v > tracking_speed &&
-          clearance >
-              map.hard_radius() + (mode_ == LocalMode::u_turn ? .005 : .035)) {
+          clearance > map.hard_radius()) {
         tracking_speed = v;
         tracking_command = {v, w};
         tracking_clearance = clearance;

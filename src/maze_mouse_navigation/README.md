@@ -19,7 +19,7 @@ Bash 使用 `setup.bash`。无界面追加 `gui:=false rviz:=false`；已有仿�
 
 扫描点按激光安装偏移和里程计转换到局部固定坐标，射线清除可见自由空间，命中点累积占据证据；地图随车辆滚动，重叠区域保留。未知区域不参与正常路径规划。
 
-硬膨胀设为 **车体包络半径 0.14 m + 额外间隙 0.04 m = 0.18 m**；软代价只延伸至 0.28 m，即硬边界外 0.10 m。0.88 m 通道内，扣除两侧硬膨胀后供车体中心选择的名义宽度为 0.52 m。局部滚动地图扩至 8×8 m，覆盖 3.5 m 雷达扫描的完整圆形范围，分辨率保持 0.04 m。
+硬膨胀设为 **车体包络半径 0.14 m + 额外间隙 0.04 m = 0.18 m**，软膨胀已关闭。0.88 m 通道内，扣除两侧硬膨胀后供车体中心选择的名义宽度为 0.52 m。局部滚动地图扩至 8×8 m，覆盖 3.5 m 雷达扫描的完整圆形范围，分辨率保持 0.04 m。
 
 ## 连续控制
 
@@ -47,7 +47,8 @@ ros2 launch maze_mouse_navigation navigation.launch.py params:=$PWD/src/maze_mou
 ```zsh
 ros2 param set /maze_navigator max_linear_speed 1.0
 ros2 param set /maze_navigator max_angular_speed 1.8
-ros2 param set /maze_navigator inflation_margin 0.02
+ros2 param set /maze_navigator inflation_margin 0.04
+ros2 param set /maze_navigator soft_cost_radius 0.0
 ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 ```
 
@@ -68,7 +69,7 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 | `costmap_resolution` / `costmap_size` | 0.04 m / 8.0 m | 滚动地图精度与边长；覆盖 3.5 m 雷达量程 |
 | `robot_radius` | 0.14 m | 车体圆形包络半径 |
 | `inflation_margin` | 0.04 m | 在车体之外增加的硬安全间隙 |
-| `soft_cost_radius` | 0.28 m | 硬膨胀边界外 0.10 m 的渐变代价范围 |
+| `soft_cost_radius` | 0.0 m | 软膨胀关闭；仅使用硬碰撞边界 |
 | `desired_left_distance` | 0.28 m | 用于追踪左墙方向的偏置轮廓；非强制行驶距离 |
 | `prediction_horizon` / `reaction_time` | 0.75 s / 0.20 s | 轨迹预测与延迟预算 |
 | `linear_acceleration` / `linear_deceleration` | 0.8 / 1.0 m/s² | 预测模型的加减速能力 |
@@ -100,7 +101,7 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 | --- | --- | --- |
 | `/cmd_vel` | Twist | 实际速度指令 |
 | `/maze_mouse/obstacles` | OccupancyGrid | 雷达占据地图 |
-| `/maze_mouse/costmap` | OccupancyGrid | 膨胀区及墙边代价，RViz 默认显示 |
+| `/maze_mouse/costmap` | OccupancyGrid | 仅显示硬碰撞边界膨胀，RViz 默认显示 |
 | `/maze_mouse/path` | Path | 当前 Pure Pursuit 滚动参考路径（兼容话题） |
 | `/maze_mouse/reference` | Path | 当前 Pure Pursuit 滚动参考路径，RViz 绿色 |
 | `/maze_mouse/trajectory` | Path | 实际里程计轨迹，蓝色 |
