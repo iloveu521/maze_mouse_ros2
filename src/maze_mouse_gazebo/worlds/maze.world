@@ -1,0 +1,707 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="maze_from_image">
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+    <model name="wall_h0">
+      <static>true</static><pose>0.000 4.983 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>9.965 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>9.965 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h1">
+      <static>true</static><pose>-0.017 4.931 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>10.000 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>10.000 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h2">
+      <static>true</static><pose>-3.958 4.878 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h3">
+      <static>true</static><pose>1.944 4.878 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h4">
+      <static>true</static><pose>-2.500 3.958 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>3.090 0.139 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>3.090 0.139 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h5">
+      <static>true</static><pose>0.486 4.010 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h6">
+      <static>true</static><pose>4.427 3.958 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h7">
+      <static>true</static><pose>0.469 3.941 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h8">
+      <static>true</static><pose>1.927 3.038 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.208 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.208 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h9">
+      <static>true</static><pose>1.476 3.003 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h10">
+      <static>true</static><pose>1.458 2.969 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.146 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.146 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h11">
+      <static>true</static><pose>1.476 2.934 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h12">
+      <static>true</static><pose>-1.510 1.979 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h13">
+      <static>true</static><pose>1.458 1.979 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>3.090 0.139 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>3.090 0.139 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h14">
+      <static>true</static><pose>-3.681 1.059 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.729 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.729 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h15">
+      <static>true</static><pose>-2.535 1.059 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.215 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.215 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h16">
+      <static>true</static><pose>-0.503 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h17">
+      <static>true</static><pose>1.476 1.059 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.042 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.042 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h18">
+      <static>true</static><pose>2.969 1.059 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.208 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.208 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h19">
+      <static>true</static><pose>4.062 1.059 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.840 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.840 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h20">
+      <static>true</static><pose>-2.986 0.990 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.118 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.118 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h21">
+      <static>true</static><pose>1.458 1.024 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h22">
+      <static>true</static><pose>3.924 0.990 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.118 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.118 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h23">
+      <static>true</static><pose>1.458 0.990 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.146 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.146 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h24">
+      <static>true</static><pose>1.476 0.955 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h25">
+      <static>true</static><pose>1.944 0.920 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h26">
+      <static>true</static><pose>2.951 0.920 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h27">
+      <static>true</static><pose>2.951 0.087 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h28">
+      <static>true</static><pose>-2.483 0.017 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h29">
+      <static>true</static><pose>-0.017 0.017 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.083 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.083 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h30">
+      <static>true</static><pose>3.420 0.035 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h31">
+      <static>true</static><pose>3.438 -0.017 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h32">
+      <static>true</static><pose>-2.951 -0.052 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h33">
+      <static>true</static><pose>-2.448 -0.052 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.556 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.556 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h34">
+      <static>true</static><pose>-2.014 -0.052 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h35">
+      <static>true</static><pose>-0.885 -0.052 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.278 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.278 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h36">
+      <static>true</static><pose>-0.434 -0.052 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.417 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.417 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h37">
+      <static>true</static><pose>0.747 -0.052 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.556 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.556 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h38">
+      <static>true</static><pose>3.767 -0.052 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.347 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.347 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h39">
+      <static>true</static><pose>-4.479 -0.920 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h40">
+      <static>true</static><pose>1.476 -0.920 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>5.000 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>5.000 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h41">
+      <static>true</static><pose>-4.462 -0.990 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h42">
+      <static>true</static><pose>1.458 -0.990 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>5.035 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>5.035 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h43">
+      <static>true</static><pose>0.972 -1.059 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h44">
+      <static>true</static><pose>-3.472 -1.927 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h45">
+      <static>true</static><pose>-1.510 -1.962 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h46">
+      <static>true</static><pose>2.448 -1.962 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h47">
+      <static>true</static><pose>-3.490 -1.962 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h48">
+      <static>true</static><pose>-3.472 -1.997 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h49">
+      <static>true</static><pose>2.917 -2.031 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h50">
+      <static>true</static><pose>-3.976 -2.934 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.083 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.083 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h51">
+      <static>true</static><pose>-0.503 -2.951 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.139 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h52">
+      <static>true</static><pose>1.458 -2.899 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h53">
+      <static>true</static><pose>1.476 -2.951 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h54">
+      <static>true</static><pose>-3.958 -3.003 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.049 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.049 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h55">
+      <static>true</static><pose>1.458 -3.003 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h56">
+      <static>true</static><pose>-1.979 -3.872 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h57">
+      <static>true</static><pose>2.951 -3.872 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h58">
+      <static>true</static><pose>4.896 -3.872 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h59">
+      <static>true</static><pose>-4.462 -3.941 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.104 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h60">
+      <static>true</static><pose>-1.510 -3.924 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.111 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h61">
+      <static>true</static><pose>0.955 -3.906 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.083 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.083 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h62">
+      <static>true</static><pose>3.924 -3.924 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.118 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.118 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h63">
+      <static>true</static><pose>0.972 -3.958 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.118 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.118 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h64">
+      <static>true</static><pose>-1.493 -3.976 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.076 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h65">
+      <static>true</static><pose>3.941 -3.976 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>2.083 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.083 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h66">
+      <static>true</static><pose>-4.931 -4.010 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h67">
+      <static>true</static><pose>1.944 -4.010 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h68">
+      <static>true</static><pose>-4.549 -4.878 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.938 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.938 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h69">
+      <static>true</static><pose>-3.872 -4.878 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.347 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.347 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h70">
+      <static>true</static><pose>0.799 -4.878 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>8.368 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>8.368 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h71">
+      <static>true</static><pose>-0.017 -4.931 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>10.000 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>10.000 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h72">
+      <static>true</static><pose>-4.722 -4.983 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.243 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.243 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h73">
+      <static>true</static><pose>-4.236 -4.983 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.174 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h74">
+      <static>true</static><pose>-3.524 -4.983 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.278 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.278 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h75">
+      <static>true</static><pose>-3.125 -4.983 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.243 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.243 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h76">
+      <static>true</static><pose>-2.622 -4.983 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.278 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.278 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_h77">
+      <static>true</static><pose>1.163 -4.983 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>7.222 0.100 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>7.222 0.100 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v78">
+      <static>true</static><pose>-4.983 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 7.951 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 7.951 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v79">
+      <static>true</static><pose>-4.948 -4.410 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 1.076 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 1.076 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v80">
+      <static>true</static><pose>-4.931 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 8.021 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 8.021 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v81">
+      <static>true</static><pose>-4.878 -0.955 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.208 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.208 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v82">
+      <static>true</static><pose>-4.878 -2.917 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v83">
+      <static>true</static><pose>-4.010 3.767 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.667 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.667 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v84">
+      <static>true</static><pose>-4.010 0.833 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.632 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.632 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v85">
+      <static>true</static><pose>-4.010 -0.972 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v86">
+      <static>true</static><pose>-4.010 -1.510 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.694 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.694 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v87">
+      <static>true</static><pose>-3.941 3.976 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v88">
+      <static>true</static><pose>-3.958 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v89">
+      <static>true</static><pose>-3.958 -1.441 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v90">
+      <static>true</static><pose>-3.906 1.024 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v91">
+      <static>true</static><pose>-3.906 -1.458 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.076 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.076 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v92">
+      <static>true</static><pose>-3.038 -2.951 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v93">
+      <static>true</static><pose>-3.003 3.003 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v94">
+      <static>true</static><pose>-2.969 -0.955 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v95">
+      <static>true</static><pose>-2.969 -3.420 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v96">
+      <static>true</static><pose>-2.951 2.986 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v97">
+      <static>true</static><pose>-2.899 3.958 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v98">
+      <static>true</static><pose>-2.031 1.979 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.049 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.049 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v99">
+      <static>true</static><pose>-1.979 -0.955 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.139 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.139 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v100">
+      <static>true</static><pose>-2.031 -3.420 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.042 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.042 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v101">
+      <static>true</static><pose>-1.979 2.014 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v102">
+      <static>true</static><pose>-1.962 -3.420 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v103">
+      <static>true</static><pose>-1.927 1.997 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v104">
+      <static>true</static><pose>-0.990 3.490 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v105">
+      <static>true</static><pose>-1.024 1.024 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v106">
+      <static>true</static><pose>-1.024 -1.458 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.076 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.076 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v107">
+      <static>true</static><pose>-0.990 -3.420 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v108">
+      <static>true</static><pose>-0.972 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v109">
+      <static>true</static><pose>-0.972 -1.441 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v110">
+      <static>true</static><pose>-0.920 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v111">
+      <static>true</static><pose>-0.920 0.035 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v112">
+      <static>true</static><pose>-0.920 -0.972 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v113">
+      <static>true</static><pose>-0.052 2.483 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 3.056 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 3.056 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v114">
+      <static>true</static><pose>0.000 -2.934 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.139 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.139 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v115">
+      <static>true</static><pose>0.017 2.500 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 3.090 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 3.090 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v116">
+      <static>true</static><pose>0.920 -0.972 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v117">
+      <static>true</static><pose>0.990 -1.944 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v118">
+      <static>true</static><pose>1.059 -0.972 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v119">
+      <static>true</static><pose>1.892 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v120">
+      <static>true</static><pose>1.979 3.976 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.139 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.139 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v121">
+      <static>true</static><pose>1.962 0.035 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v122">
+      <static>true</static><pose>1.962 -4.427 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v123">
+      <static>true</static><pose>2.031 -0.069 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.910 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.910 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v124">
+      <static>true</static><pose>2.031 -4.444 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.076 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.076 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v125">
+      <static>true</static><pose>2.899 3.125 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 1.771 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 1.771 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v126">
+      <static>true</static><pose>2.899 1.111 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.188 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.188 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v127">
+      <static>true</static><pose>2.899 -2.917 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 2.049 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 2.049 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v128">
+      <static>true</static><pose>2.969 2.014 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 4.062 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 4.062 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v129">
+      <static>true</static><pose>2.969 -2.934 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 2.083 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 2.083 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v130">
+      <static>true</static><pose>3.038 1.007 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v131">
+      <static>true</static><pose>3.038 0.035 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v132">
+      <static>true</static><pose>3.941 2.986 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v133">
+      <static>true</static><pose>3.941 -1.944 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.104 2.118 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v134">
+      <static>true</static><pose>4.010 3.958 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v135">
+      <static>true</static><pose>4.010 3.646 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 0.174 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v136">
+      <static>true</static><pose>4.931 4.462 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.139 1.111 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.139 1.111 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v137">
+      <static>true</static><pose>4.878 -0.972 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 8.021 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 8.021 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v138">
+      <static>true</static><pose>4.931 -0.955 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 8.056 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 8.056 1.0</size></box></geometry></visual></link>
+    </model>
+    <model name="wall_v139">
+      <static>true</static><pose>4.983 -0.955 0.5 0 0 0</pose>
+      <link name="link"><collision name="c"><geometry><box><size>0.100 7.986 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.100 7.986 1.0</size></box></geometry></visual></link>
+    </model>
+  </world>
+</sdf>

@@ -1,14 +1,16 @@
 # 迷宫鼠 Gazebo 环境
 
-面向 **ROS 2 Humble / TurtleBot3 Burger / Gazebo Classic 11** 实验，提供约 6×6 米的迷宫及一键启动文件。本包负责环境与机器人加载，供后续路径搜索、沿通道中心导航、轨迹平滑及速度规划实验使用。
+面向 **ROS 2 Humble / TurtleBot3 Burger / Gazebo Classic 11** 实验，提供一键启动文件。本包负责环境与机器人加载，供后续路径搜索、沿通道中心导航、轨迹平滑及速度规划实验使用。
 
-默认的 C++20 连续左墙跟随导航见相邻的 [maze_mouse_navigation](../maze_mouse_navigation/README.md)，当前 Gazebo 复测配置的线速度指令上限为 0.8 m/s，支持运行中调参；本包的 `maze.launch.py` 仍只启动环境与可视化。
+`maze.launch.py` 和 `world.launch.py` 默认加载 [worlds/maze.world](worlds/maze.world)。此图约 10×10 m，坐标中心在世界原点；西侧入口位于 y≈-3.44 m，起点为 (-4.50, -3.44)，东侧出口位于 y≈3.49 m，导航目标为 (5.45, 3.49)。机器人出生位置和默认 costmap 导航目标已与此 world 对齐。`worlds/maze_6x6.world` 是另一张生成测试地图，仍保留供脚本和历史验证使用。
+
+默认的 C++20 costmap 路径跟踪导航见相邻的 [maze_mouse_navigation](../maze_mouse_navigation/README.md)；本包的 `maze.launch.py` 负责环境、机器人、TF 和可视化启动。
 
 ![迷宫设计俯视图](docs/maze_6x6.svg)
 
 图为按 world 几何生成的设计图。[平滑中心线设计图](docs/maze_6x6_solution.svg)中的虚线表示一条沿通道中间行驶的参考轨迹，不要求贴左墙。
 
-## 地图参数
+## `maze_6x6.world` 生成地图参数
 
 | 项目 | 数值 / 说明 |
 | --- | --- |

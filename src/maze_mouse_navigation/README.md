@@ -92,7 +92,7 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 
 滚动路径与死胡同掉头的 Gazebo 结果见[验证记录](docs/rolling_path_tuning.md)。
 
-默认起点 `(0.5,0.5,0)`，出口目标 `(6.45,5.5)`，与首次里程计位姿建立对应。更换机器人时需要同步修改车体包络、激光安装参数和运动模型。
+默认 Gazebo 世界为 `maze_mouse_gazebo/worlds/maze.world`；起点为 `(-4.50,-3.44,0)`，出口目标为 `(5.45,3.49)`。起点与首次里程计位姿建立对应。更换机器人时需要同步修改车体包络、激光安装参数和运动模型。
 
 ## 观察与验证
 

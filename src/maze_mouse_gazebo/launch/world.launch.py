@@ -16,7 +16,7 @@ def generate_launch_description():
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('paused', default_value='false'),
         DeclareLaunchArgument('verbose', default_value='false'),
-        DeclareLaunchArgument('world', default_value=str(share / 'worlds' / 'maze_6x6.world')),
+        DeclareLaunchArgument('world', default_value=str(share / 'worlds' / 'maze.world')),
         SetEnvironmentVariable('GAZEBO_MODEL_DATABASE_URI', ''),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(str(gazebo_share / 'launch' / 'gazebo.launch.py')),

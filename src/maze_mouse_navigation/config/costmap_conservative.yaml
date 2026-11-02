@@ -2,11 +2,11 @@
 /maze_navigator:
   ros__parameters:
     use_sim_time: true
-    start_x: 0.5
-    start_y: 0.5
+    start_x: -4.5
+    start_y: -3.44
     start_yaw: 0.0
-    goal_x: 6.45
-    goal_y: 5.5
+    goal_x: 5.45
+    goal_y: 3.49
     goal_tolerance: 0.14
     max_linear_speed: 0.5
     max_angular_speed: 0.9

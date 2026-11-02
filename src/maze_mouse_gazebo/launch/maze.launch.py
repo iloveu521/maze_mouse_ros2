@@ -1,6 +1,5 @@
 """Start the maze, Burger, robot TF and optional RViz in one launch."""
 
-import json
 import os
 from pathlib import Path
 
@@ -16,12 +15,17 @@ from launch_ros.actions import Node
 def generate_launch_description():
     share = Path(get_package_share_directory('maze_mouse_gazebo'))
     tb3_share = Path(get_package_share_directory('turtlebot3_gazebo'))
-    layout = json.loads((share / 'config' / 'maze_layout.json').read_text())
-    spawn = layout['spawn']
+    # The default maze.world is centered around the world origin; its west
+    # entrance is at y ~= -3.44 m. maze_layout.json belongs to maze_6x6.world.
+    spawn = {'x': -4.5, 'y': -3.44, 'z': 0.01, 'yaw': 0.0}
     robot_description = (tb3_share / 'urdf' / 'turtlebot3_burger.urdf').read_text()
-    model_path = str(tb3_share / 'models')
+    model_paths = [str(tb3_share / 'models')]
+    gazebo_models = Path('/usr/share/gazebo-11/models')
+    if gazebo_models.is_dir():
+        model_paths.append(str(gazebo_models))
     if os.environ.get('GAZEBO_MODEL_PATH'):
-        model_path += os.pathsep + os.environ['GAZEBO_MODEL_PATH']
+        model_paths.append(os.environ['GAZEBO_MODEL_PATH'])
+    model_path = os.pathsep.join(model_paths)
 
     return LaunchDescription([
         DeclareLaunchArgument('gui', default_value='true'),
