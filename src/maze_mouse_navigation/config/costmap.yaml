@@ -1,5 +1,5 @@
 # Gazebo-tuned profile. Speeds: m/s, rad/s; distances: m; times: s.
-# Hard inflation is the 0.14 m body radius plus 0.02 m clearance; the soft-cost
+# Hard inflation is the 0.14 m body radius plus 0.04 m clearance; the soft-cost
 # band extends 0.10 m beyond that hard boundary.
 /maze_navigator:
   ros__parameters:
@@ -26,8 +26,8 @@
     costmap_resolution: 0.04
     costmap_size: 8.0
     robot_radius: 0.14
-    inflation_margin: 0.02
-    soft_cost_radius: 0.26
+    inflation_margin: 0.04
+    soft_cost_radius: 0.28
     laser_offset_x: -0.032
     laser_offset_y: 0.0
     laser_yaw: 0.0

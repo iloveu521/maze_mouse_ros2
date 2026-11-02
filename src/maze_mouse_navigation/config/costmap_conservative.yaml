@@ -24,8 +24,8 @@
     costmap_resolution: 0.05
     costmap_size: 8.0
     robot_radius: 0.14
-    inflation_margin: 0.02
-    soft_cost_radius: 0.26
+    inflation_margin: 0.04
+    soft_cost_radius: 0.28
     laser_offset_x: -0.032
     laser_offset_y: 0.0
     laser_yaw: 0.0

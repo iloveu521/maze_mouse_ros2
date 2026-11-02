@@ -141,5 +141,6 @@ private:
   double previous_command_angular_{};
   double filtered_target_angular_{};
   bool have_control_error_{};
+  int alignment_turn_direction_{};
 };
 } // namespace maze_mouse_navigation

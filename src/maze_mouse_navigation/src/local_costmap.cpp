@@ -955,6 +955,44 @@ std::vector<WallPoint> CostmapFollower::dead_end_path(const WallPose &pose,
       }
     }
   }
+  // A capped wall can be absent from the fitted guide segments for a few
+  // scans even while the three laser sectors clearly show a closed lane.
+  // Confirm the closure from the scan and return along the already observed
+  // corridor rather than letting the local trajectory sampler remain BLOCKED.
+  const double closed_side_limit = p_.dead_end_side_opening + .13;
+  const bool already_turning_away_from_cap =
+      have_handled_cap_ &&
+      std::hypot(handled_cap_.x - pose.x, handled_cap_.y - pose.y) < .55;
+  if (!already_turning_away_from_cap && sectors.front.distance < .42 &&
+      sectors.left.distance < closed_side_limit &&
+      sectors.right.distance < closed_side_limit) {
+    std::vector<WallPoint> path;
+    for (double length = std::min(1.8, p_.dead_end_distance); length >= .40;
+         length -= .10) {
+      path.clear();
+      const int points = std::max(12, static_cast<int>(length / .04));
+      for (int i = 0; i <= points; ++i) {
+        const double distance = length * i / points;
+        path.push_back(world(-distance, 0));
+      }
+      bool clear = map.traversable(pose.x, pose.y);
+      for (std::size_t i = 1; clear && i < path.size(); ++i)
+        clear = map.line_clear(path[i - 1], path[i]);
+      if (!clear)
+        continue;
+      ++dead_ends_;
+      have_handled_cap_ = true;
+      handled_cap_ = world(std::max(.30, sectors.front.distance), 0);
+      turn_in_place_ = true;
+      turn_heading_ = wrap_angle(lane_yaw + pi);
+      previous_command_angular_ = 0;
+      filtered_target_angular_ = 0;
+      heading_integral_ = 0;
+      filtered_derivative_ = 0;
+      have_control_error_ = false;
+      return path;
+    }
+  }
   return {};
 }
 WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
@@ -1131,6 +1169,66 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   }
   reference_ = refresh_reference(std::move(candidate_reference), pose, map);
   if (reference_.size() < 2) {
+    // A scan update can temporarily invalidate the contour while the robot is
+    // still in a safe corridor. Preserve the last confirmed travel heading
+    // and bridge the gap with a short checked segment instead of dropping the
+    // reference and stopping before the next scan can rebuild it.
+    if (initial_clearance > map.hard_radius() + .01 &&
+        std::abs(pose.linear_speed) < .04 && have_guide_yaw_) {
+      if (s.front.distance < .55) {
+        const double open_limit = p_.dead_end_side_opening + .13;
+        const bool left_open = s.left.distance > open_limit;
+        const bool right_open = s.right.distance > open_limit;
+        if (left_open || right_open) {
+          const double side = left_open ? 1.0 : -1.0;
+          guide_yaw_ = wrap_angle(pose.yaw + side * pi / 2);
+          have_guide_yaw_ = true;
+          have_anchor_ = false;
+          cached_reference_.clear();
+          cached_mode_ = LocalMode::following;
+          alignment_turn_direction_ = static_cast<int>(side);
+          const double error = wrap_angle(guide_yaw_ - pose.yaw);
+          const double target =
+              std::clamp(1.8 * error, -p_.max_angular, p_.max_angular);
+          const double command_delta = p_.angular_command_acceleration * dt;
+          const double angular = std::clamp(
+              target, previous_command_angular_ - command_delta,
+              previous_command_angular_ + command_delta);
+          previous_command_angular_ = angular;
+          filtered_target_angular_ = angular;
+          mode_ = LocalMode::following;
+          return {0, angular};
+        }
+      }
+      for (double distance = .30; distance >= .08; distance -= .04) {
+        const WallPoint ahead{pose.x + distance * std::cos(guide_yaw_),
+                              pose.y + distance * std::sin(guide_yaw_)};
+        if (map.line_clear({pose.x, pose.y}, ahead)) {
+          reference_ = {{pose.x, pose.y}, ahead};
+          cached_reference_ = reference_;
+          cached_mode_ = LocalMode::following;
+          mode_ = LocalMode::following;
+          break;
+        }
+      }
+      if (reference_.size() < 2) {
+        const double error = wrap_angle(guide_yaw_ - pose.yaw);
+        if (std::abs(error) > .12) {
+          const double command_delta = p_.angular_command_acceleration * dt;
+          const double target = std::clamp(1.8 * error, -p_.max_angular,
+                                           p_.max_angular);
+          const double angular = std::clamp(
+              target, previous_command_angular_ - command_delta,
+              previous_command_angular_ + command_delta);
+          previous_command_angular_ = angular;
+          filtered_target_angular_ = angular;
+          mode_ = LocalMode::following;
+          return {0, angular};
+        }
+      }
+    }
+  }
+  if (reference_.size() < 2) {
     mode_ = LocalMode::blocked;
     previous_command_angular_ = 0;
     return {};
@@ -1293,11 +1391,46 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   const double stationary_error = std::abs(heading_error) > .08
                                       ? heading_error
                                       : pursuit_heading_error;
-  const double stationary_angular =
+  const double raw_stationary_angular =
       std::abs(target_angular_) > .3
           ? target_angular_
           : std::clamp(p_.heading_kp * stationary_error, -p_.max_angular,
                        p_.max_angular);
+  if (std::abs(tracking_error_) <= .7 || mode_ == LocalMode::u_turn)
+    alignment_turn_direction_ = 0;
+  else if (std::abs(tracking_error_) > p_.heading_stop_angle &&
+           alignment_turn_direction_ == 0) {
+    const double initial_turn =
+        std::abs(target_angular_) > .05 ? target_angular_ : tracking_error_;
+    alignment_turn_direction_ = initial_turn >= 0 ? 1 : -1;
+  }
+  const double stationary_angular =
+      alignment_turn_direction_ != 0 &&
+              std::abs(tracking_error_) > p_.heading_stop_angle
+          ? alignment_turn_direction_ *
+                std::clamp(std::abs(raw_stationary_angular), .45,
+                           p_.max_angular)
+          : raw_stationary_angular;
+  // Large path-heading errors intentionally set upper_v to zero. In that
+  // state a differential drive should rotate continuously in place; sending
+  // the turn through the translational candidate sampler can alternate
+  // FOLLOW/BLOCKED and reset angular acceleration on every rejected cycle.
+  // The robot footprint is circular, so a stationary spin is safe whenever
+  // the measured clearance already exceeds the hard inflated radius.
+  if (upper_v < .005 && std::abs(tracking_error_) > p_.heading_stop_angle &&
+      std::abs(pose.linear_speed) < .04 &&
+      initial_clearance > map.hard_radius() + .01 &&
+      (mode_ == LocalMode::following || mode_ == LocalMode::exiting)) {
+    const double command_delta = p_.angular_command_acceleration * dt;
+    const double turn_magnitude =
+        std::clamp(std::abs(stationary_angular), .45, p_.max_angular);
+    const double continuous_turn = alignment_turn_direction_ * turn_magnitude;
+    const double angular = std::clamp(
+        continuous_turn, previous_command_angular_ - command_delta,
+        previous_command_angular_ + command_delta);
+    previous_command_angular_ = angular;
+    return {0, angular};
+  }
   double best = 1e30, best_moving = 1e30, moving_clearance = 0,
          tracking_speed = -1, tracking_clearance = 0;
   WallCommand chosen{}, moving_command{}, tracking_command{};
@@ -1419,6 +1552,51 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     }
   }
   if (best == 1e30) {
+    // When the front is blocked but a single side sector sees a clear branch,
+    // use that opening as the next wall-follow direction. The contour can be
+    // temporarily missing at the junction, so preserve the decision and turn
+    // toward the opening instead of repeatedly issuing zero velocity.
+    if (std::abs(pose.linear_speed) < .04 &&
+        initial_clearance > map.hard_radius() + .01 &&
+        s.front.distance < .55) {
+      const double open_limit = p_.dead_end_side_opening + .13;
+      const bool left_open = s.left.distance > open_limit;
+      const bool right_open = s.right.distance > open_limit;
+      if (left_open || right_open) {
+        const double side = left_open ? 1.0 : -1.0;
+        guide_yaw_ = wrap_angle(pose.yaw + side * pi / 2);
+        have_guide_yaw_ = true;
+        have_anchor_ = false;
+        cached_reference_.clear();
+        cached_mode_ = LocalMode::following;
+        alignment_turn_direction_ = static_cast<int>(side);
+        const double error = wrap_angle(guide_yaw_ - pose.yaw);
+        const double target =
+            std::clamp(1.8 * error, -p_.max_angular, p_.max_angular);
+        const double command_delta = p_.angular_command_acceleration * dt;
+        const double angular = std::clamp(
+            target, previous_command_angular_ - command_delta,
+            previous_command_angular_ + command_delta);
+        previous_command_angular_ = angular;
+        mode_ = LocalMode::following;
+        return {0, angular};
+      }
+    }
+    // If every forward arc collides, keep a safe stationary turn toward the
+    // path tangent. Zeroing the command here at every rejected scan cycle
+    // used to make a corner turn pulse on/off forever even when the robot had
+    // room to rotate in place.
+    if (std::abs(pose.linear_speed) < .04 &&
+        initial_clearance > map.hard_radius() + .01 &&
+        std::abs(stationary_angular) > .10) {
+      const double command_delta = p_.angular_command_acceleration * dt;
+      const double angular = std::clamp(
+          stationary_angular, previous_command_angular_ - command_delta,
+          previous_command_angular_ + command_delta);
+      previous_command_angular_ = angular;
+      mode_ = LocalMode::following;
+      return {0, angular};
+    }
     mode_ = LocalMode::blocked;
     previous_command_angular_ = 0;
     return {};
