@@ -48,6 +48,8 @@
     pursuit_lookahead_gain: 0.35
     pursuit_lookahead_max: 0.90
     path_preview_distance: 1.20
+    path_refresh_distance: 0.90
+    path_validation_distance: 1.50
     heading_kp: 0.75
     heading_ki: 0.02
     heading_kd: 0.16
@@ -60,5 +62,5 @@
     dead_end_distance: 1.15
     dead_end_front_gap: 0.45
     u_turn_speed: 0.22
-    u_turn_lookahead: 0.12
+    u_turn_lookahead: 0.20
     u_turn_horizon: 0.50

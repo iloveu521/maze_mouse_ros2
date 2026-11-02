@@ -69,13 +69,14 @@ struct LocalPlannerParameters {
   double clearance_weight{4.0}, speed_weight{0.5};
   double pursuit_lookahead{0.60}, pursuit_lookahead_gain{0.35};
   double pursuit_lookahead_max{0.90}, path_preview_distance{1.20};
+  double path_refresh_distance{0.90}, path_validation_distance{1.50};
   double heading_kp{0.75}, heading_ki{0.02}, heading_kd{0.16};
   double lateral_gain{0.40}, curvature_feedforward{1.0};
   double max_lateral_acceleration{0.65}, angular_command_acceleration{2.5};
   double angular_filter_time_constant{0.18};
   double pursuit_weight{4.0};
   double dead_end_distance{1.15}, dead_end_front_gap{0.45};
-  double u_turn_speed{0.22}, u_turn_lookahead{0.12}, u_turn_horizon{0.50};
+  double u_turn_speed{0.22}, u_turn_lookahead{0.20}, u_turn_horizon{0.50};
   double goal_x{6.45}, goal_y{5.5}, goal_tolerance{0.14};
 };
 enum class LocalMode {
@@ -109,6 +110,9 @@ public:
 private:
   std::vector<WallPoint> wall_reference(const WallPose &, const LocalCostmap &);
   std::vector<WallPoint> dead_end_path(const WallPose &, const LocalCostmap &);
+  std::vector<WallPoint> refresh_reference(std::vector<WallPoint> candidate,
+                                           const WallPose &pose,
+                                           const LocalCostmap &map);
   LocalPlannerParameters p_;
   LocalMode mode_{LocalMode::following};
   double desired_yaw_{}, predicted_clearance_{};
@@ -117,6 +121,8 @@ private:
   bool recovering_{};
   std::vector<WallPoint> best_path_;
   std::vector<WallPoint> reference_;
+  std::vector<WallPoint> cached_reference_;
+  LocalMode cached_mode_{LocalMode::blocked};
   int moving_candidates_{};
   std::vector<WallPoint> turn_path_;
   std::size_t turn_index_{};

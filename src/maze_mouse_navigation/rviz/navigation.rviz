@@ -63,19 +63,7 @@ Visualization Manager:
         History Policy: Keep Last
         Depth: 1
     - Class: rviz_default_plugins/Path
-      Name: Selected Local Trajectory
-      Enabled: true
-      Topic:
-        Value: /maze_mouse/path
-        Reliability Policy: Reliable
-        Durability Policy: Transient Local
-        History Policy: Keep Last
-        Depth: 1
-      Color: 255; 190; 70
-      Line Style: Lines
-      Line Width: 0.03
-    - Class: rviz_default_plugins/Path
-      Name: Wall Reference / U-turn Curve
+      Name: Rolling Pure Pursuit Path
       Enabled: true
       Topic:
         Value: /maze_mouse/reference
