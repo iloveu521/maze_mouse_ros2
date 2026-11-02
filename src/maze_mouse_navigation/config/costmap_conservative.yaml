@@ -31,8 +31,19 @@
     laser_yaw: 0.0
     linear_samples: 6
     angular_samples: 30
-    pursuit_lookahead: 0.40
-    pursuit_weight: 2.0
+    pursuit_lookahead: 0.55
+    pursuit_lookahead_gain: 0.30
+    pursuit_lookahead_max: 0.80
+    path_preview_distance: 1.20
+    heading_kp: 0.85
+    heading_ki: 0.025
+    heading_kd: 0.14
+    lateral_gain: 0.55
+    curvature_feedforward: 1.0
+    max_lateral_acceleration: 0.40
+    angular_command_acceleration: 1.8
+    angular_filter_time_constant: 0.24
+    pursuit_weight: 4.0
     dead_end_distance: 1.15
     dead_end_front_gap: 0.45
     u_turn_speed: 0.22

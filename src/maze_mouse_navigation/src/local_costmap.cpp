@@ -568,14 +568,19 @@ CostmapFollower::CostmapFollower(LocalPlannerParameters p) : p_(p) {
       p.target_tolerance, p.recovery_speed,       p.heading_stop_angle,
       p.progress_weight,  p.path_weight,          p.heading_weight,
       p.clearance_weight, p.speed_weight,         p.pursuit_lookahead,
-      p.pursuit_weight,   p.dead_end_distance,    p.dead_end_front_gap,
-      p.u_turn_speed,     p.u_turn_lookahead,     p.u_turn_horizon};
+      p.pursuit_lookahead_gain, p.pursuit_lookahead_max,
+      p.path_preview_distance, p.heading_kp, p.heading_ki, p.heading_kd,
+      p.lateral_gain, p.curvature_feedforward, p.max_lateral_acceleration,
+      p.angular_command_acceleration, p.angular_filter_time_constant,
+      p.pursuit_weight, p.dead_end_distance, p.dead_end_front_gap,
+      p.u_turn_speed, p.u_turn_lookahead, p.u_turn_horizon};
   if (!std::all_of(values.begin(), values.end(),
                    [](double v) { return std::isfinite(v) && v > 0; }) ||
       !std::isfinite(p.reaction_time) || p.reaction_time < 0 ||
       p.horizon <= p.reaction_time ||
       p.dead_end_front_gap >= p.dead_end_distance ||
       p.u_turn_horizon <= p.reaction_time || p.heading_stop_angle >= pi / 2 ||
+      p.pursuit_lookahead_max < p.pursuit_lookahead ||
       p.linear_samples < 2 || p.linear_samples > 40 || p.angular_samples < 8 ||
       p.angular_samples > 120 || !std::isfinite(p.wall_offset) ||
       p.wall_offset < 0 || !std::isfinite(p.recovery_enter) ||
@@ -590,6 +595,16 @@ void CostmapFollower::configure(LocalPlannerParameters p) {
       p.target_lookahead != p_.target_lookahead ||
       p.wall_offset != p_.wall_offset)
     have_anchor_ = false;
+  if (p.heading_kp != p_.heading_kp || p.heading_ki != p_.heading_ki ||
+      p.heading_kd != p_.heading_kd || p.lateral_gain != p_.lateral_gain) {
+    heading_integral_ = 0;
+    filtered_derivative_ = 0;
+    have_control_error_ = false;
+  }
+  previous_command_angular_ =
+      std::clamp(previous_command_angular_, -p.max_angular, p.max_angular);
+  filtered_target_angular_ =
+      std::clamp(filtered_target_angular_, -p.max_angular, p.max_angular);
   p_ = p;
 }
 std::vector<WallPoint>
@@ -600,7 +615,7 @@ CostmapFollower::wall_reference(const WallPose &pose, const LocalCostmap &map) {
   // wall opens into a branch. Do not chase that branch's short end face.
   double best_wall = 1e9;
   std::vector<WallPoint> straight;
-  const double length = std::max(.9, p_.target_lookahead);
+  const double length = std::max(1.8, p_.target_lookahead);
   for (const auto &wall : map.guide_walls()) {
     double dx = (wall.b.x - wall.a.x) / wall.length(),
            dy = (wall.b.y - wall.a.y) / wall.length();
@@ -802,10 +817,17 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   if (!fresh || !map.ready() || !s.usable() || !std::isfinite(pose.x) ||
       !std::isfinite(pose.y) || !std::isfinite(pose.yaw) ||
       !std::isfinite(pose.linear_speed) || !std::isfinite(pose.angular_speed) ||
-      !std::isfinite(dt))
+      !std::isfinite(dt)) {
+    previous_command_angular_ = 0;
+    filtered_target_angular_ = 0;
+    have_control_error_ = false;
     return {};
-  if (mode_ == LocalMode::complete)
+  }
+  if (mode_ == LocalMode::complete) {
+    previous_command_angular_ = 0;
+    filtered_target_angular_ = 0;
     return {};
+  }
   if (!have_guide_yaw_) {
     guide_yaw_ = pose.yaw;
     have_guide_yaw_ = true;
@@ -814,14 +836,47 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
       std::hypot(p_.goal_x - pose.x, p_.goal_y - pose.y);
   if (goal_distance < p_.goal_tolerance) {
     mode_ = LocalMode::complete;
+    previous_command_angular_ = 0;
+    filtered_target_angular_ = 0;
+    heading_integral_ = 0;
     return {};
   }
   const double initial_clearance = map.clearance(pose.x, pose.y);
+  // If scan registration puts the footprint just inside its inflated radius,
+  // rotating or commanding zero cannot escape the local minimum. A short
+  // reverse is allowed only through observed cells whose clearance improves
+  // along the complete retreat segment.
+  if (initial_clearance <=
+      std::max(0.0, map.hard_radius() - map.resolution())) {
+    double previous = initial_clearance;
+    bool retreat_clear = initial_clearance > 0;
+    double retreat_end = initial_clearance;
+    for (double distance = .04; distance <= .32; distance += .04) {
+      const double x = pose.x - distance * std::cos(pose.yaw);
+      const double y = pose.y - distance * std::sin(pose.yaw);
+      const double clearance = map.clearance(x, y);
+      if (clearance <= 0 || clearance + .005 < previous) {
+        retreat_clear = false;
+        break;
+      }
+      previous = clearance;
+      retreat_end = clearance;
+    }
+    if (retreat_clear && retreat_end > initial_clearance + .06) {
+      mode_ = LocalMode::recovering;
+      previous_command_angular_ = 0;
+      filtered_target_angular_ = 0;
+      heading_integral_ = 0;
+      have_control_error_ = false;
+      return {-std::min(.12, p_.recovery_speed), 0};
+    }
+  }
   // A newly observed obstacle may overlap an existing footprint. Only a
   // shallow overlap permits escape; unknown space and deep overlaps stop.
   if (initial_clearance <=
       std::max(0.0, map.hard_radius() - map.resolution())) {
     mode_ = LocalMode::blocked;
+    previous_command_angular_ = 0;
     return {};
   }
   if (initial_clearance <
@@ -890,6 +945,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   }
   if (reference.size() < 2) {
     mode_ = LocalMode::blocked;
+    previous_command_angular_ = 0;
     return {};
   }
   reference_ = reference;
@@ -899,7 +955,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         cumulative[i - 1] + std::hypot(reference[i].x - reference[i - 1].x,
                                        reference[i].y - reference[i - 1].y);
   auto projection = [&](double x, double y, double limit = 1e9) {
-    double best = 1e9, along = 0, heading = pose.yaw;
+    double best = 1e9, along = 0, heading = pose.yaw, lateral = 0;
     for (std::size_t i = 1; i < reference.size(); ++i) {
       const auto a = reference[i - 1], b = reference[i];
       const double dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
@@ -916,10 +972,14 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         best = distance;
         along = cumulative[i - 1] + t * std::sqrt(l2);
         heading = std::atan2(dy, dx);
+        const double px = a.x + t * dx, py = a.y + t * dy;
+        lateral = -std::sin(heading) * (px - x) +
+                  std::cos(heading) * (py - y);
       }
     }
-    return std::array<double, 3>{std::sqrt(best), along, heading};
+    return std::array<double, 4>{std::sqrt(best), along, heading, lateral};
   };
+  dt = std::clamp(dt, .01, .1);
   const auto projected =
       projection(pose.x, pose.y, mode_ == LocalMode::u_turn ? .15 : .65);
   if (!recovering_ && mode_ != LocalMode::exiting)
@@ -927,31 +987,87 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         guide_yaw_ + std::clamp(wrap_angle(projected[2] - guide_yaw_),
                                 -p_.max_angular * std::clamp(dt, .01, .1),
                                 p_.max_angular * std::clamp(dt, .01, .1)));
-  const double lookahead = (mode_ == LocalMode::u_turn ? p_.u_turn_lookahead
-                                                       : p_.pursuit_lookahead) +
-                           0.18 * std::max(0.0, pose.linear_speed);
+  const double lookahead =
+      mode_ == LocalMode::u_turn
+          ? p_.u_turn_lookahead
+          : std::clamp(p_.pursuit_lookahead +
+                           p_.pursuit_lookahead_gain *
+                               std::max(0.0, pose.linear_speed),
+                       p_.pursuit_lookahead, p_.pursuit_lookahead_max);
   const double look_distance = projected[1] + lookahead;
-  WallPoint look = reference.back();
-  for (std::size_t i = 1; i < reference.size(); ++i)
-    if (cumulative[i] >= look_distance) {
-      const double t = (look_distance - cumulative[i - 1]) /
-                       std::max(1e-9, cumulative[i] - cumulative[i - 1]);
-      look = {reference[i - 1].x + t * (reference[i].x - reference[i - 1].x),
-              reference[i - 1].y + t * (reference[i].y - reference[i - 1].y)};
+  auto sample = [&](double distance) {
+    distance = std::clamp(distance, 0.0, cumulative.back());
+    for (std::size_t i = 1; i < reference.size(); ++i)
+      if (cumulative[i] >= distance) {
+        const double t = (distance - cumulative[i - 1]) /
+                         std::max(1e-9, cumulative[i] - cumulative[i - 1]);
+        return std::array<double, 3>{
+            reference[i - 1].x + t * (reference[i].x - reference[i - 1].x),
+            reference[i - 1].y + t * (reference[i].y - reference[i - 1].y),
+            std::atan2(reference[i].y - reference[i - 1].y,
+                       reference[i].x - reference[i - 1].x)};
+      }
+    const auto a = reference[reference.size() - 2], b = reference.back();
+    return std::array<double, 3>{b.x, b.y, std::atan2(b.y - a.y, b.x - a.x)};
+  };
+  // The path may bend around an inner wall. Chasing its far point directly
+  // would cut through that wall and produce a late emergency correction.
+  double visible_distance = look_distance;
+  while (visible_distance > projected[1] + .28) {
+    const auto candidate = sample(visible_distance);
+    if (map.line_clear({pose.x, pose.y}, {candidate[0], candidate[1]}))
       break;
-    }
+    visible_distance -= .04;
+  }
+  control_lookahead_ = std::max(0.0, visible_distance - projected[1]);
+  const auto look_sample = sample(visible_distance);
+  const WallPoint look{look_sample[0], look_sample[1]};
   desired_yaw_ = std::atan2(look.y - pose.y, look.x - pose.x);
-  const double heading_error = wrap_angle(desired_yaw_ - pose.yaw);
+  const double pursuit_heading_error = wrap_angle(desired_yaw_ - pose.yaw);
   const double look_length =
       std::max(.12, std::hypot(look.x - pose.x, look.y - pose.y));
-  const double curvature = 2 * std::sin(heading_error) / look_length;
-  dt = std::clamp(dt, .01, .1);
+  const double pursuit_curvature =
+      2 * std::sin(pursuit_heading_error) / look_length;
+  const double heading_distance =
+      std::min(cumulative.back(), projected[1] + .25);
+  const auto heading_sample = sample(heading_distance);
+  const double preview_end =
+      std::min(cumulative.back(), projected[1] + p_.path_preview_distance);
+  const auto preview = sample(preview_end);
+  const double preview_length = std::max(.12, preview_end - heading_distance);
+  const double path_curvature =
+      wrap_angle(preview[2] - heading_sample[2]) / preview_length;
+  const double curvature = .65 * pursuit_curvature + .35 * path_curvature;
+  const double heading_error = wrap_angle(heading_sample[2] - pose.yaw);
+  tracking_error_ = wrap_angle(
+      heading_error +
+      std::atan2(p_.lateral_gain * projected[3],
+                 std::max(.22, std::max(0.0, pose.linear_speed))));
+  const double raw_derivative =
+      have_control_error_
+          ? wrap_angle(tracking_error_ - previous_tracking_error_) / dt
+          : 0;
+  filtered_derivative_ = .90 * filtered_derivative_ + .10 * raw_derivative;
+  const double proposed_integral =
+      std::clamp(heading_integral_ + tracking_error_ * dt, -.35, .35);
+  const double feedback_without_integral =
+      p_.heading_kp * tracking_error_ + p_.heading_kd * filtered_derivative_;
+  if (std::abs(tracking_error_) < .8 &&
+      std::abs(feedback_without_integral + p_.heading_ki * proposed_integral) <
+          p_.max_angular)
+    heading_integral_ = proposed_integral;
+  previous_tracking_error_ = tracking_error_;
+  have_control_error_ = true;
+  const double feedback_angular =
+      feedback_without_integral + p_.heading_ki * heading_integral_;
   const double speed_limit =
       recovering_ ? std::min(p_.recovery_speed, p_.max_speed)
                   : (mode_ == LocalMode::u_turn
                          ? std::min(p_.u_turn_speed, p_.max_speed)
                          : p_.max_speed);
-  double preview_speed = speed_limit;
+  double preview_speed = std::min(
+      speed_limit,
+      std::sqrt(p_.max_lateral_acceleration / std::max(.01, std::abs(curvature))));
   for (std::size_t i = 3; i + 3 < reference.size(); ++i) {
     const double ahead = cumulative[i] - projected[1];
     if (ahead < 0 || ahead > 1.0)
@@ -965,7 +1081,8 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     const double k =
         2 * std::abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) /
         (ab * bc * ac);
-    const double curve_speed = .7 * p_.max_angular / std::max(.01, k);
+    const double curve_speed =
+        std::sqrt(p_.max_lateral_acceleration / std::max(.01, k));
     const double braking_distance = std::max(
         0., ahead - .12 - p_.reaction_time * std::max(0., pose.linear_speed));
     preview_speed = std::min(preview_speed,
@@ -973,34 +1090,65 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
                                        2 * p_.deceleration * braking_distance));
   }
   const double upper_v =
-      std::abs(heading_error) > p_.heading_stop_angle
+      std::abs(tracking_error_) > p_.heading_stop_angle
           ? 0
-          : std::min(preview_speed,
-                     .8 * p_.max_angular / std::max(.01, std::abs(curvature))) *
-                std::max(.2, std::cos(heading_error));
-  const double nominal_w =
-      std::clamp(upper_v < .005 ? 2 * heading_error - .25 * pose.angular_speed
-                                : curvature * upper_v,
-                 -p_.max_angular, p_.max_angular);
-  std::vector<double> rotations{
-      0, nominal_w,
-      std::clamp(2 * heading_error - .25 * pose.angular_speed, -p_.max_angular,
-                 p_.max_angular)};
-  for (int i = 0; i <= p_.angular_samples; ++i)
-    rotations.push_back(-p_.max_angular +
-                        2 * p_.max_angular * i / p_.angular_samples);
+          : preview_speed * std::max(.25, std::cos(tracking_error_));
+  target_angular_ = std::clamp(
+      p_.curvature_feedforward * curvature * upper_v + feedback_angular,
+      -p_.max_angular, p_.max_angular);
+  const double filter_alpha = dt / (p_.angular_filter_time_constant + dt);
+  filtered_target_angular_ +=
+      filter_alpha * (target_angular_ - filtered_target_angular_);
+  target_angular_ = filtered_target_angular_;
   const double horizon = mode_ == LocalMode::u_turn
                              ? std::min(p_.horizon, p_.u_turn_horizon)
                              : p_.horizon;
+  const double stationary_error = std::abs(heading_error) > .08
+                                      ? heading_error
+                                      : pursuit_heading_error;
+  const double stationary_angular =
+      std::abs(target_angular_) > .3
+          ? target_angular_
+          : std::clamp(p_.heading_kp * stationary_error, -p_.max_angular,
+                       p_.max_angular);
   double best = 1e30, best_moving = 1e30, moving_clearance = 0,
          tracking_speed = -1, tracking_clearance = 0;
   WallCommand chosen{}, moving_command{}, tracking_command{};
   std::vector<WallPoint> moving_path, tracking_path;
+  const double command_delta = p_.angular_command_acceleration * dt;
   for (int vi = 0; vi <= p_.linear_samples; ++vi) {
     const double v = upper_v * vi / p_.linear_samples;
-    auto candidates = rotations;
-    candidates.push_back(
-        std::clamp(curvature * v, -p_.max_angular, p_.max_angular));
+    // When collision prediction temporarily rejects every advancing arc, a
+    // stopped candidate must still rotate toward the planned tangent. Using
+    // feedback alone here can be nearly zero even though the path ahead bends,
+    // leaving a differential drive indefinitely parked at the corner entry.
+    const double desired_w =
+        v < .005
+            ? stationary_angular
+            : std::clamp(target_angular_ + p_.curvature_feedforward *
+                                                curvature * (v - upper_v),
+                         -p_.max_angular, p_.max_angular);
+    const double low_w =
+        std::max(-p_.max_angular, previous_command_angular_ - command_delta);
+    const double high_w =
+        std::min(p_.max_angular, previous_command_angular_ + command_delta);
+    const double limited_w = std::clamp(desired_w, low_w, high_w);
+    const double search_step =
+        std::max(.04, 2 * command_delta / std::max(8, p_.angular_samples));
+    std::vector<double> candidates{limited_w, previous_command_angular_};
+    for (int offset = 1; offset <= 2; ++offset) {
+      candidates.push_back(
+          std::clamp(limited_w - offset * search_step, low_w, high_w));
+      candidates.push_back(
+          std::clamp(limited_w + offset * search_step, low_w, high_w));
+    }
+    if (low_w <= 0 && high_w >= 0)
+      candidates.push_back(0);
+    std::sort(candidates.begin(), candidates.end());
+    candidates.erase(
+        std::unique(candidates.begin(), candidates.end(),
+                    [](double a, double b) { return std::abs(a - b) < 1e-5; }),
+        candidates.end());
     for (const double w : candidates) {
       WallPose predicted = pose;
       double clearance = 100, penalty = 0;
@@ -1059,12 +1207,11 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
               std::exp(-40 * (clearance - map.hard_radius())) +
           p_.speed_weight * (p_.max_speed - v) +
           0.12 * std::abs(w - pose.angular_speed) +
-          p_.pursuit_weight *
-              std::abs(w - (upper_v < .005 ? nominal_w : curvature * v));
+          p_.pursuit_weight * std::abs(w - desired_w);
       if (v > .005 && end[1] - projected[1] > .005 &&
-          std::abs(w - curvature * v) < .005 && v > tracking_speed &&
+          std::abs(w - limited_w) < 1e-5 && v > tracking_speed &&
           clearance >
-              map.hard_radius() + (mode_ == LocalMode::u_turn ? .005 : .04)) {
+              map.hard_radius() + (mode_ == LocalMode::u_turn ? .005 : .035)) {
         tracking_speed = v;
         tracking_command = {v, w};
         tracking_clearance = clearance;
@@ -1086,6 +1233,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   }
   if (best == 1e30) {
     mode_ = LocalMode::blocked;
+    previous_command_angular_ = 0;
     return {};
   }
   // Collision-checked translational progress takes precedence over a stationary
@@ -1100,6 +1248,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     best_path_ = std::move(tracking_path);
     predicted_clearance_ = tracking_clearance;
   }
+  previous_command_angular_ = chosen.angular;
   return chosen;
 }
 } // namespace maze_mouse_navigation

@@ -25,9 +25,10 @@ Bash 使用 `setup.bash`。无界面追加 `gui:=false rviz:=false`；已有仿�
 
 1. 沿拟合后的连续左墙生成偏置参考线，并保存行进方向；右侧出现岔路时继续沿左墙通过，恢复避障后也回到原来的行进方向。控制器不加载 world、迷宫连通图或预设解答。
 2. 在局部 costmap 上使用 A* 为这个局部目标绕开障碍，再检查并简化路径。这里的 4 cm 网格只是障碍表示精度，不是 1 m 迷宫单元，也不要求车辆逐点停靠。
-3. 采样线速度与角速度组合，预测加减速、执行延迟及停车过程，剔除碰撞轨迹，再按前进进度、路径偏差、航向和墙边代价选取速度。转弯中可以同时前进和转向。
-4. 车辆接近膨胀区时进入 `RECOVER_CLEARANCE`，低速朝更宽敞方向恢复间隙。新扫描使当前位置浅度落入膨胀边缘时，只允许不再深入的脱离轨迹；深度重叠和未知位置停车。
-5. 当 90° 前方扇区及拟合墙段确认前墙和两侧长墙时，控制器在约 1 m 外生成进入曲线、半圆和退出曲线，并用 costmap 检查整条曲线。无法满足掉头间隙时才回退到普通轮廓避障。雷达无效、数据过期立即输出零速度；持续 15 秒无平移进入 `FAULT`。到达配置出口后停车。
+3. 前瞻距离随车速从 0.60 m 增至最多 0.90 m；若前瞻点与车辆之间的直线穿过膨胀墙面，控制器会缩短前瞻点，避免隔墙追逐弯后路径。路径曲率提供转向前馈，横向与航向 PID 负责误差修正，积分限幅并过滤角速度目标，降低连续反向纠偏。
+4. 采样线速度与角速度组合，预测加减速、执行延迟及停车过程，剔除碰撞轨迹，再按前进进度、路径偏差、航向和墙边代价选取速度。前视曲率限制弯道速度，角速度变化率限制控制跳变；转弯中可以同时前进和转向。
+5. 当 90° 前方扇区及拟合墙段确认前墙和两侧长墙时，控制器在约 1 m 外生成进入曲线、半圆和退出曲线，并用 costmap 检查整条曲线。无法满足掉头间隙时才回退到普通轮廓避障。
+6. 车辆接近膨胀区时进入 `RECOVER_CLEARANCE`，低速朝更宽敞方向恢复间隙。当前位置进入硬膨胀边缘时，只有当后方已观测、整段间隙不减且终点间隙增加，才短暂倒退脱困；若找不到这样的后退路径则停车。雷达无效、数据过期立即输出零速度；持续 15 秒无平移进入 `FAULT`。到达配置出口后停车。
 
 这是左墙策略加局部避障，不执行全局泛洪搜索，不保证最短路。当前版本用里程计维护局部地图，未接入 SLAM 或全局定位，长时间累计漂移仍会影响出口判定。速度上限是指令约束，实际速度和完成时间分别由 Gazebo 里程计及状态话题记录，见 [完整调参记录](docs/speed_tuning/README.md)。
 
@@ -56,6 +57,12 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 | --- | --- | --- |
 | `max_linear_speed` | 0.8 m/s | Gazebo 复测配置；转弯和避障时自动降低 |
 | `max_angular_speed` | 1.8 rad/s | 角速度上限 |
+| `pursuit_lookahead` / `pursuit_lookahead_gain` / `pursuit_lookahead_max` | 0.60 m / 0.35 s / 0.90 m | 随速度增加的几何前瞻及上限；遇到墙会缩短 |
+| `path_preview_distance` | 1.20 m | 路径曲率前馈的预览长度 |
+| `heading_kp` / `heading_ki` / `heading_kd` | 0.75 / 0.02 / 0.16 | 航向误差 PID 增益，积分带限幅，微分经过滤波 |
+| `lateral_gain` / `curvature_feedforward` | 0.40 / 1.0 | 横向误差修正与路径曲率前馈权重 |
+| `max_lateral_acceleration` | 0.65 m/s² | 预测弯道线速度上限 |
+| `angular_command_acceleration` / `angular_filter_time_constant` | 2.5 rad/s² / 0.18 s | 角速度指令变化限制和一阶滤波 |
 | `costmap_resolution` / `costmap_size` | 0.04 m / 4.0 m | 滚动地图精度与边长 |
 | `robot_radius` | 0.14 m | 车体圆形包络半径 |
 | `inflation_margin` | 0.04 m | 在车体之外增加的墙边间隙 |
@@ -92,7 +99,7 @@ ros2 param load /maze_navigator src/maze_mouse_navigation/config/costmap.yaml
 | `/maze_mouse/reference` | Path | 拟合左墙参考线或完整掉头曲线，绿色 |
 | `/maze_mouse/trajectory` | Path | 实际里程计轨迹，蓝色 |
 | `/maze_mouse/sectors` | Vector3Stamped | x=前、y=左、z=右的扇区距离 |
-| `/maze_mouse/status` | String | JSON：状态、速度、膨胀半径、间隙、里程、耗时及计算时间 |
+| `/maze_mouse/status` | String | JSON：状态、速度、膨胀半径、间隙、跟踪误差、实际前瞻、目标角速度、里程、耗时及计算时间 |
 
 ```zsh
 ros2 topic echo /maze_mouse/status std_msgs/msg/String --no-daemon --full-length
@@ -100,7 +107,7 @@ colcon test --packages-select maze_mouse_gazebo maze_mouse_navigation
 colcon test-result --verbose
 ```
 
-自动检查包括地图、旧控制器、局部 costmap 整图回归、60°/90° 扇区、短端面过滤、岔路保持左墙方向，以及正入和偏航进入死胡同的提前识别。最新 Gazebo 结果见 [墙段与掉头验证](docs/scan_geometry_validation.md)；[原提速记录](docs/speed_tuning/README.md)和[原 0.5 m/s 验证](docs/costmap_validation.md)保留作历史对照。
+自动检查包括地图、旧控制器、局部 costmap 整图回归、60°/90° 扇区、短端面过滤、岔路保持左墙方向，以及正入和偏航进入死胡同的提前识别。最新 Gazebo 结果见[路径跟踪调参记录](docs/path_tracking_tuning.md)与[墙段和掉头验证](docs/scan_geometry_validation.md)；[原提速记录](docs/speed_tuning/README.md)和[原 0.5 m/s 验证](docs/costmap_validation.md)保留作历史对照。
 
 实现：[local_costmap.hpp](include/maze_mouse_navigation/local_costmap.hpp)、[local_costmap.cpp](src/local_costmap.cpp)、[costmap_node.cpp](src/costmap_node.cpp)。Python launch 只编排进程。
 

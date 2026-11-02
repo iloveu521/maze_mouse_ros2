@@ -67,7 +67,13 @@ struct LocalPlannerParameters {
   double heading_stop_angle{0.8};
   double progress_weight{3.0}, path_weight{2.0}, heading_weight{0.8};
   double clearance_weight{4.0}, speed_weight{0.5};
-  double pursuit_lookahead{0.40}, pursuit_weight{2.0};
+  double pursuit_lookahead{0.60}, pursuit_lookahead_gain{0.35};
+  double pursuit_lookahead_max{0.90}, path_preview_distance{1.20};
+  double heading_kp{0.75}, heading_ki{0.02}, heading_kd{0.16};
+  double lateral_gain{0.40}, curvature_feedforward{1.0};
+  double max_lateral_acceleration{0.65}, angular_command_acceleration{2.5};
+  double angular_filter_time_constant{0.18};
+  double pursuit_weight{4.0};
   double dead_end_distance{1.15}, dead_end_front_gap{0.45};
   double u_turn_speed{0.22}, u_turn_lookahead{0.12}, u_turn_horizon{0.50};
   double goal_x{6.45}, goal_y{5.5}, goal_tolerance{0.14};
@@ -96,6 +102,9 @@ public:
   int dead_ends() const { return dead_ends_; }
   double dead_end_front_distance() const { return dead_end_front_distance_; }
   double navigation_heading() const { return guide_yaw_; }
+  double tracking_error() const { return tracking_error_; }
+  double control_lookahead() const { return control_lookahead_; }
+  double target_angular() const { return target_angular_; }
 
 private:
   std::vector<WallPoint> wall_reference(const WallPose &, const LocalCostmap &);
@@ -115,5 +124,10 @@ private:
   double dead_end_front_distance_{};
   double guide_yaw_{};
   bool have_guide_yaw_{};
+  double tracking_error_{}, control_lookahead_{}, target_angular_{};
+  double heading_integral_{}, previous_tracking_error_{}, filtered_derivative_{};
+  double previous_command_angular_{};
+  double filtered_target_angular_{};
+  bool have_control_error_{};
 };
 } // namespace maze_mouse_navigation

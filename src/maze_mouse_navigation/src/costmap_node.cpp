@@ -324,6 +324,10 @@ private:
         << number(map_->clearance(pose_.x, pose_.y))
         << ",\"predicted_clearance\":"
         << number(planner_->predicted_clearance())
+        << ",\"tracking_error\":" << number(planner_->tracking_error())
+        << ",\"control_lookahead\":"
+        << number(planner_->control_lookahead())
+        << ",\"target_angular\":" << number(planner_->target_angular())
         << ",\"front\":" << number(sectors_.front.distance)
         << ",\"left\":" << number(sectors_.left.distance)
         << ",\"right\":" << number(sectors_.right.distance)
@@ -386,6 +390,24 @@ private:
           {"clearance_weight", &LocalPlannerParameters::clearance_weight},
           {"speed_weight", &LocalPlannerParameters::speed_weight},
           {"pursuit_lookahead", &LocalPlannerParameters::pursuit_lookahead},
+          {"pursuit_lookahead_gain",
+           &LocalPlannerParameters::pursuit_lookahead_gain},
+          {"pursuit_lookahead_max",
+           &LocalPlannerParameters::pursuit_lookahead_max},
+          {"path_preview_distance",
+           &LocalPlannerParameters::path_preview_distance},
+          {"heading_kp", &LocalPlannerParameters::heading_kp},
+          {"heading_ki", &LocalPlannerParameters::heading_ki},
+          {"heading_kd", &LocalPlannerParameters::heading_kd},
+          {"lateral_gain", &LocalPlannerParameters::lateral_gain},
+          {"curvature_feedforward",
+           &LocalPlannerParameters::curvature_feedforward},
+          {"max_lateral_acceleration",
+           &LocalPlannerParameters::max_lateral_acceleration},
+          {"angular_command_acceleration",
+           &LocalPlannerParameters::angular_command_acceleration},
+          {"angular_filter_time_constant",
+           &LocalPlannerParameters::angular_filter_time_constant},
           {"pursuit_weight", &LocalPlannerParameters::pursuit_weight},
           {"dead_end_distance", &LocalPlannerParameters::dead_end_distance},
           {"dead_end_front_gap", &LocalPlannerParameters::dead_end_front_gap},

@@ -271,6 +271,19 @@ TEST(CostmapPlanner, ReadyMapStillRejectsUnknownRobotPosition) {
   EXPECT_DOUBLE_EQ(command.linear, 0);
   EXPECT_DOUBLE_EQ(command.angular, 0);
 }
+TEST(CostmapPlanner, RetreatsFromObservedInflationOverlap) {
+  WallPose pose{.82, 0, 0, 0, 0};
+  LocalCostmap map;
+  ASSERT_TRUE(
+      map.update(pose, wall_scan(pose, 1.0), 0, pi / 180, .12, 3.5));
+  ASSERT_LT(map.clearance(pose.x, pose.y), map.hard_radius());
+  CostmapFollower follower;
+  const auto command = follower.step(
+      pose, map.scan_geometry().sectors, map, .05, true);
+  EXPECT_EQ(follower.mode(), LocalMode::recovering);
+  EXPECT_LT(command.linear, 0);
+  EXPECT_DOUBLE_EQ(command.angular, 0);
+}
 
 INSTANTIATE_TEST_SUITE_P(CleanAndNoisyOffsetStart, CostmapWorld,
                          ::testing::Bool());
@@ -409,6 +422,38 @@ TEST(CostmapPlanner, RightOpeningDoesNotBreakLeftWallHeading) {
     EXPECT_GT(cmd.linear, .1) << x;
     EXPECT_EQ(follower.dead_ends(), 0);
   }
+}
+TEST(CostmapController, SpeedPreviewAndAngularSlewPreventSteeringJump) {
+  const std::vector<Shape> walls{{0, .56, 3, .06, false},
+                                 {-1.8, -.56, 1.4, .06, false},
+                                 {1.8, -.56, 1.4, .06, false}};
+  CostmapParameters map_parameters;
+  map_parameters.safety_margin = .04;
+  map_parameters.resolution = .04;
+  LocalCostmap map(map_parameters);
+  LocalPlannerParameters parameters;
+  parameters.max_speed = .8;
+  parameters.max_angular = 1.8;
+  parameters.angular_command_acceleration = 2.5;
+  CostmapFollower follower(parameters);
+
+  WallPose pose{-.60, .10, 0, 0, .8};
+  ASSERT_TRUE(
+      map.update(pose, shape_scan(pose, walls), 0, pi / 180, .12, 3.5));
+  const auto first =
+      follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+  EXPECT_GT(follower.control_lookahead(), .7);
+  EXPECT_LE(std::abs(first.angular), .125 + 1e-6);
+
+  // A sudden opposite lateral error must not flip the steering actuator in a
+  // single controller period. The PID target may change immediately, while
+  // the command remains physically reachable by the differential drive.
+  pose.y = -.10;
+  ASSERT_TRUE(
+      map.update(pose, shape_scan(pose, walls), 0, pi / 180, .12, 3.5));
+  const auto second =
+      follower.step(pose, map.scan_geometry().sectors, map, .05, true);
+  EXPECT_LE(std::abs(second.angular - first.angular), .125 + 1e-6);
 }
 TEST(CostmapPlanner, RecognisesDeadEndOneMetreAwayAndPlansCompleteArc) {
   const WallPose pose{};
