@@ -15,9 +15,12 @@ from std_msgs.msg import String
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: record_run.py OUTPUT_PREFIX")
+    if len(sys.argv) not in (2, 3):
+        raise SystemExit("usage: record_run.py OUTPUT_PREFIX [MAX_SECONDS]")
     prefix = Path(sys.argv[1])
+    max_seconds = float(sys.argv[2]) if len(sys.argv) == 3 else 360.0
+    if max_seconds <= 0:
+        raise SystemExit("MAX_SECONDS must be positive")
     prefix.parent.mkdir(parents=True, exist_ok=True)
     rclpy.init()
     node = rclpy.create_node("maze_tuning_recorder")
@@ -60,7 +63,7 @@ def main():
     node.create_subscription(String, "/maze_mouse/status", status, 10)
     start = time.monotonic()
     try:
-        while rclpy.ok() and time.monotonic() - start < 360:
+        while rclpy.ok() and time.monotonic() - start < max_seconds:
             rclpy.spin_once(node, timeout_sec=0.2)
             if terminal_at is not None and time.monotonic() - terminal_at > 0.7:
                 break

@@ -18,6 +18,7 @@ def generate_launch_description():
         DeclareLaunchArgument('simulation', default_value='true'),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('world', default_value=str(gazebo / 'worlds' / 'maze.world')),
         DeclareLaunchArgument('controller', default_value='costmap_follower',
                              choices=['costmap_follower', 'left_wall_follower', 'maze_navigator']),
         DeclareLaunchArgument('params', default_value=PathJoinSubstitution([
@@ -30,6 +31,7 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(str(gazebo / 'launch' / 'maze.launch.py')),
             launch_arguments={'gui': LaunchConfiguration('gui'),
                               'rviz': LaunchConfiguration('rviz'),
+                              'world': LaunchConfiguration('world'),
                               'rviz_config': str(share / 'rviz' / 'navigation.rviz')}.items(),
             condition=IfCondition(LaunchConfiguration('simulation')),
         ),

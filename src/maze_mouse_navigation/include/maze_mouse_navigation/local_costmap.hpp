@@ -33,6 +33,7 @@ public:
   std::vector<std::int8_t> cost_data() const;
   int width() const { return n_; }
   double resolution() const { return p_.resolution; }
+  double robot_radius() const { return p_.robot_radius; }
   double origin_x() const { return ox_; }
   double origin_y() const { return oy_; }
   double hard_radius() const { return p_.robot_radius + p_.safety_margin; }
@@ -64,6 +65,8 @@ struct LocalPlannerParameters {
   double horizon{1.5}, reaction_time{0.20}, wall_distance{0.30};
   double target_lookahead{0.85}, target_tolerance{0.18}, wall_offset{0.10};
   double recovery_enter{0.04}, recovery_exit{0.075}, recovery_speed{0.15};
+  double no_path_probe_speed{0.50};
+  double rotation_radius{0.11};
   double heading_stop_angle{0.8};
   double progress_weight{3.0}, path_weight{2.0}, heading_weight{0.8};
   double clearance_weight{4.0}, speed_weight{0.5};
@@ -107,6 +110,10 @@ public:
   double tracking_error() const { return tracking_error_; }
   double control_lookahead() const { return control_lookahead_; }
   double target_angular() const { return target_angular_; }
+  int reference_update_code() const { return reference_update_code_; }
+  double reference_remaining() const { return reference_remaining_; }
+  std::size_t reference_points() const { return reference_.size(); }
+  std::size_t candidate_points() const { return reference_candidate_points_; }
 
 private:
   std::vector<WallPoint> wall_reference(const WallPose &, const LocalCostmap &);
@@ -137,10 +144,14 @@ private:
   double guide_yaw_{};
   bool have_guide_yaw_{};
   double tracking_error_{}, control_lookahead_{}, target_angular_{};
+  double reference_remaining_{};
+  std::size_t reference_candidate_points_{};
+  int reference_update_code_{};
   double heading_integral_{}, previous_tracking_error_{}, filtered_derivative_{};
   double previous_command_angular_{};
   double filtered_target_angular_{};
   bool have_control_error_{};
   int alignment_turn_direction_{};
+  double post_turn_probe_cooldown_{};
 };
 } // namespace maze_mouse_navigation

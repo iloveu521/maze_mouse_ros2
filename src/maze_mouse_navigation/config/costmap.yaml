@@ -34,6 +34,8 @@
     recovery_enter_margin: 0.015
     recovery_exit_margin: 0.035
     recovery_speed: 0.3
+    no_path_probe_speed: 0.5
+    rotation_radius: 0.11
     heading_stop_angle: 1.2
     target_lookahead: 1.05
     target_tolerance: 0.2

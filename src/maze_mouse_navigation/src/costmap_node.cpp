@@ -327,10 +327,25 @@ private:
         << ",\"tracking_error\":" << number(planner_->tracking_error())
         << ",\"control_lookahead\":"
         << number(planner_->control_lookahead())
+        << ",\"reference_update_code\":"
+        << planner_->reference_update_code()
+        << ",\"reference_remaining\":"
+        << number(planner_->reference_remaining())
+        << ",\"reference_points\":" << planner_->reference_points()
+        << ",\"candidate_points\":" << planner_->candidate_points()
+        << ",\"moving_candidates\":" << planner_->moving_candidates()
         << ",\"target_angular\":" << number(planner_->target_angular())
         << ",\"front\":" << number(sectors_.front.distance)
+        << ",\"front_minimum_range\":"
+        << number(sectors_.front.minimum_range)
+        << ",\"front_center_minimum_range\":"
+        << number(sectors_.front.center_minimum_range)
         << ",\"left\":" << number(sectors_.left.distance)
+        << ",\"left_minimum_range\":"
+        << number(sectors_.left.minimum_range)
         << ",\"right\":" << number(sectors_.right.distance)
+        << ",\"right_minimum_range\":"
+        << number(sectors_.right.minimum_range)
         << ",\"side_sector_width_deg\":"
         << number(map_parameters_.side_sector_degrees)
         << ",\"front_sector_width_deg\":"
@@ -383,6 +398,9 @@ private:
           {"recovery_enter_margin", &LocalPlannerParameters::recovery_enter},
           {"recovery_exit_margin", &LocalPlannerParameters::recovery_exit},
           {"recovery_speed", &LocalPlannerParameters::recovery_speed},
+          {"no_path_probe_speed",
+           &LocalPlannerParameters::no_path_probe_speed},
+          {"rotation_radius", &LocalPlannerParameters::rotation_radius},
           {"heading_stop_angle", &LocalPlannerParameters::heading_stop_angle},
           {"progress_weight", &LocalPlannerParameters::progress_weight},
           {"path_weight", &LocalPlannerParameters::path_weight},

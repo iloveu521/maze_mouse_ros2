@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <queue>
 #include <stdexcept>
 
@@ -135,7 +136,23 @@ bool LocalCostmap::update(const WallPose &pose, std::span<const float> ranges,
   scan_geometry_ =
       analyse_scan(ranges, amin + p_.laser_yaw, inc, rmin, rmax,
                    {p_.side_sector_degrees, p_.front_sector_degrees,
-                    p_.minimum_wall_length, p_.wall_fit_tolerance});
+                    p_.minimum_wall_length, p_.wall_fit_tolerance,
+                    hard_radius()});
+  // Rotation clearance is measured from the robot center, not the offset
+  // lidar origin. Compensate every hit for the configured sensor translation.
+  auto &center_clearance = scan_geometry_.sectors.all_minimum_range;
+  center_clearance = std::numeric_limits<double>::infinity();
+  for (std::size_t i = 0; i < ranges.size(); ++i) {
+    const double range = ranges[i];
+    if (!(std::isinf(range) && range > 0) &&
+        !(std::isfinite(range) && range >= rmin && range <= rmax))
+      continue;
+    const double length = std::isinf(range) ? rmax : range;
+    const double angle = amin + p_.laser_yaw + i * inc;
+    const double x = p_.laser_x + length * std::cos(angle);
+    const double y = p_.laser_y + length * std::sin(angle);
+    center_clearance = std::min(center_clearance, std::hypot(x, y));
+  }
   std::vector<bool> free(n_ * n_, false), hit(n_ * n_, false);
   const double sx = pose.x + std::cos(pose.yaw) * p_.laser_x -
                     std::sin(pose.yaw) * p_.laser_y;
@@ -563,7 +580,9 @@ CostmapFollower::CostmapFollower(LocalPlannerParameters p) : p_(p) {
       p.max_speed,        p.max_angular,          p.acceleration,
       p.deceleration,     p.angular_acceleration, p.horizon,
       p.wall_distance,    p.goal_tolerance,       p.target_lookahead,
-      p.target_tolerance, p.recovery_speed,       p.heading_stop_angle,
+      p.target_tolerance, p.recovery_speed,       p.no_path_probe_speed,
+      p.rotation_radius,
+      p.heading_stop_angle,
       p.progress_weight,  p.path_weight,          p.heading_weight,
       p.speed_weight,     p.pursuit_lookahead,
       p.pursuit_lookahead_gain, p.pursuit_lookahead_max,
@@ -666,6 +685,13 @@ CostmapFollower::wall_reference(const WallPose &pose, const LocalCostmap &map) {
   const bool previously_had_anchor = have_anchor_;
   auto path =
       map.boundary_path(intent, p_.wall_distance, anchor_, have_anchor_);
+  if (path.size() < 2 && have_anchor_) {
+    // The previous contour seed can become detached when a scan briefly
+    // changes the fitted wall segments. Reseed once from the current pose
+    // before reporting that no reference exists.
+    have_anchor_ = false;
+    path = map.boundary_path(intent, p_.wall_distance, anchor_, have_anchor_);
+  }
   if (path.size() < 2)
     return {};
   const auto boundary = path;
@@ -738,29 +764,89 @@ CostmapFollower::wall_reference(const WallPose &pose, const LocalCostmap &map) {
 std::vector<WallPoint> CostmapFollower::refresh_reference(
     std::vector<WallPoint> candidate, const WallPose &pose,
     const LocalCostmap &map) {
-  if (mode_ == LocalMode::recovering)
+  reference_update_code_ = 0;
+  reference_remaining_ = 0;
+  reference_candidate_points_ = candidate.size();
+  if (mode_ == LocalMode::recovering) {
+    reference_update_code_ = 8;
     return candidate;
+  }
   // The dead-end semicircle already has its own persistent, collision-checked
   // turn_path_. Do not project or splice it through the wall-follow cache.
   if (mode_ == LocalMode::u_turn) {
     cached_reference_.clear();
     cached_mode_ = mode_;
+    reference_update_code_ = 9;
     return candidate;
   }
   if (cached_mode_ != mode_) {
     cached_reference_.clear();
     cached_mode_ = mode_;
+    reference_update_code_ = 2;
   }
   const bool has_candidate = candidate.size() >= 2;
-  if (!has_candidate && cached_reference_.size() < 2)
+  // Every replacement path must begin at the point where tracking currently
+  // is.  A fresh contour can be perfectly collision-free yet start on the
+  // other side of a corner (or even on another nearby wall component).  Using
+  // it as-is makes pure pursuit aim through the gap between the old and new
+  // references.  Connect to a forward point on the ordered candidate with the
+  // hard costmap route, then preserve the candidate's forward suffix.
+  const auto connect_to_candidate = [&](WallPoint start, double heading) {
+    std::vector<WallPoint> best_path;
+    double best_score = 1e30;
+    if (!has_candidate || !map.traversable(start.x, start.y))
+      return best_path;
+    for (std::size_t join = 0; join + 1 < candidate.size(); ++join) {
+      const auto a = candidate[join], b = candidate[join + 1];
+      const double tangent = std::atan2(b.y - a.y, b.x - a.x);
+      const double direction = std::cos(wrap_angle(tangent - heading));
+      if (direction < -0.25)
+        continue;
+      const double join_distance = std::hypot(a.x - start.x, a.y - start.y);
+      if (join_distance > 1.25)
+        continue;
+      auto connector = map.route(start, a);
+      if (connector.empty())
+        continue;
+      bool clear = true;
+      auto path = std::move(connector);
+      for (std::size_t i = join + 1; i < candidate.size(); ++i) {
+        const auto q = candidate[i];
+        if (!map.traversable(q.x, q.y) ||
+            !map.line_clear(path.back(), q)) {
+          clear = false;
+          break;
+        }
+        if (std::hypot(q.x - path.back().x, q.y - path.back().y) > .015)
+          path.push_back(q);
+      }
+      if (!clear || path.size() < 2)
+        continue;
+      double connector_length = 0;
+      for (std::size_t i = 1; i < connector.size(); ++i)
+        connector_length += std::hypot(connector[i].x - connector[i - 1].x,
+                                       connector[i].y - connector[i - 1].y);
+      const double score = connector_length + .30 * (1 - direction);
+      if (score < best_score) {
+        best_score = score;
+        best_path = std::move(path);
+      }
+    }
+    return best_path;
+  };
+  if (!has_candidate && cached_reference_.size() < 2) {
+    reference_update_code_ = 10;
     return candidate;
+  }
   if (mode_ == LocalMode::exiting) {
     cached_reference_ = candidate;
+    reference_update_code_ = 7;
     return candidate;
   }
   if (cached_reference_.size() < 2) {
-    cached_reference_ = candidate;
-    return candidate;
+    cached_reference_ = connect_to_candidate({pose.x, pose.y}, guide_yaw_);
+    reference_update_code_ = 1;
+    return cached_reference_;
   }
 
   double best_distance2 = 1e30, along = 0;
@@ -788,8 +874,9 @@ std::vector<WallPoint> CostmapFollower::refresh_reference(
     }
   }
   if (best_distance2 > .50 * .50) {
-    cached_reference_ = candidate;
-    return candidate;
+    cached_reference_ = connect_to_candidate({pose.x, pose.y}, guide_yaw_);
+    reference_update_code_ = 3;
+    return cached_reference_;
   }
 
   std::vector<WallPoint> active{projected};
@@ -798,6 +885,7 @@ std::vector<WallPoint> CostmapFollower::refresh_reference(
                    cached_reference_[i].y - active.back().y) > .015)
       active.push_back(cached_reference_[i]);
   const double remaining = std::max(0.0, cumulative.back() - along);
+  reference_remaining_ = remaining;
 
   bool valid = map.traversable(pose.x, pose.y);
   double checked = 0.0;
@@ -815,8 +903,11 @@ std::vector<WallPoint> CostmapFollower::refresh_reference(
     previous = q;
   }
   if (!valid) {
-    cached_reference_ = has_candidate ? candidate : std::vector<WallPoint>{};
-    return candidate;
+    cached_reference_ = has_candidate
+                            ? connect_to_candidate({pose.x, pose.y}, guide_yaw_)
+                            : std::vector<WallPoint>{};
+    reference_update_code_ = 4;
+    return cached_reference_;
   }
 
   if (remaining <= p_.path_refresh_distance && has_candidate) {
@@ -842,8 +933,17 @@ std::vector<WallPoint> CostmapFollower::refresh_reference(
         if (std::hypot(candidate[i].x - active.back().x,
                        candidate[i].y - active.back().y) > .015)
           active.push_back(candidate[i]);
+      reference_update_code_ = 5;
     } else if (remaining < .25) {
-      active = candidate;
+      auto continuation =
+          connect_to_candidate(active.back(), old_yaw);
+      if (continuation.size() >= 2) {
+        for (std::size_t i = 1; i < continuation.size(); ++i)
+          if (std::hypot(continuation[i].x - active.back().x,
+                         continuation[i].y - active.back().y) > .015)
+            active.push_back(continuation[i]);
+        reference_update_code_ = 6;
+      }
     }
   }
   cached_reference_ = active;
@@ -1033,12 +1133,183 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     return {};
   }
   const double initial_clearance = map.clearance(pose.x, pose.y);
+  post_turn_probe_cooldown_ =
+      std::max(0.0, post_turn_probe_cooldown_ - std::clamp(dt, .01, .1));
+  // An already selected dead-end turn has priority over the no-path fallback.
+  // Otherwise a blocked scan can short-circuit below while turn_in_place_ is
+  // set, causing opening_turn() to refuse control forever.
+  if (turn_in_place_) {
+    const double error = wrap_angle(turn_heading_ - pose.yaw);
+    if (std::abs(error) < .07) {
+      turn_in_place_ = false;
+      turn_path_.clear();
+      turn_index_ = 0;
+      guide_yaw_ = turn_heading_;
+      post_turn_probe_cooldown_ = 1.5;
+      mode_ = LocalMode::following;
+      have_anchor_ = false;
+      previous_command_angular_ = 0;
+      filtered_target_angular_ = 0;
+      heading_integral_ = 0;
+      filtered_derivative_ = 0;
+      have_control_error_ = false;
+    } else {
+      dt = std::clamp(dt, .01, .1);
+      double angular = std::clamp(2.8 * error - 0.9 * pose.angular_speed,
+                                  -p_.max_angular, p_.max_angular);
+      if (std::abs(error) > .15 && std::abs(angular) < .18 &&
+          std::abs(pose.angular_speed) < .05)
+        angular = std::copysign(.18, error);
+      const double delta = p_.angular_command_acceleration * dt;
+      angular = std::clamp(angular, previous_command_angular_ - delta,
+                           previous_command_angular_ + delta);
+      previous_command_angular_ = angular;
+      filtered_target_angular_ = angular;
+      heading_integral_ = 0;
+      have_control_error_ = false;
+      mode_ = LocalMode::u_turn;
+      return {0, angular};
+    }
+  }
+  // A missing contour is not proof that the corridor ends. Continue forward
+  // using the scan to check the robot-width corridor and calculate braking
+  // distance. The rolling costmap may be unknown or temporarily inconsistent
+  // with the current scan, so it must not veto this short recovery motion.
+  const auto scan_probe_speed = [&]() {
+    if (!s.front.usable)
+      return 0.0;
+    // The 90-degree front sector includes side walls at corners. Use the
+    // narrower swept corridor, projected along the forward axis, instead.
+    double range = post_turn_probe_cooldown_ > 0.0
+                       ? s.front.center_minimum_range
+                       : s.front.path_minimum_range;
+    if (!std::isfinite(range))
+      range = s.front.center_minimum_range;
+    if (!std::isfinite(range))
+      range = s.front.distance;
+    if (!std::isfinite(range) || range <= 0)
+      return 0.0;
+    constexpr double reserve = .04;
+    const double free_distance = range - map.hard_radius() - reserve;
+    if (free_distance <= 0)
+      return 0.0;
+    const double accel = p_.deceleration;
+    const double reaction = p_.reaction_time;
+    const double safe_speed =
+        -accel * reaction +
+        std::sqrt(accel * accel * reaction * reaction +
+                  2 * accel * free_distance);
+    const double ramped_speed =
+        std::max(0.0, pose.linear_speed) + p_.acceleration * dt;
+    const double probe_limit = post_turn_probe_cooldown_ > 0.0
+                                   ? std::min(.15, p_.no_path_probe_speed)
+                                   : p_.no_path_probe_speed;
+    const double probe_speed = std::min(
+        {p_.max_speed, probe_limit, safe_speed, ramped_speed});
+    if (probe_speed <= .015 || std::abs(pose.angular_speed) > 1.0)
+      return 0.0;
+    return probe_speed;
+  };
+  const auto opening_turn = [&]() -> std::optional<WallCommand> {
+    if (turn_in_place_ || post_turn_probe_cooldown_ > 0.0 ||
+        std::abs(pose.linear_speed) > .04 || !s.usable())
+      return std::nullopt;
+    const double observed_clearance = s.all_minimum_range;
+    // Rotation is safe when the observed scan clears the physical footprint;
+    // the extra costmap margin is not a physical collision radius.
+    if (observed_clearance <= p_.rotation_radius + .01)
+      return std::nullopt;
+
+    const double heading_error =
+        have_guide_yaw_ ? wrap_angle(guide_yaw_ - pose.yaw) : 0.0;
+    double target_heading = pose.yaw;
+    const bool footprint_tight =
+        initial_clearance <= map.robot_radius() + .035;
+    if (footprint_tight) {
+      const double side_difference = s.left.distance - s.right.distance;
+      if (std::max(s.left.distance, s.right.distance) >
+          p_.dead_end_side_opening) {
+        const double side = side_difference >= 0 ? 1.0 : -1.0;
+        target_heading = wrap_angle(pose.yaw + side * pi / 2);
+      } else if (std::abs(side_difference) > .10) {
+        const double side = std::copysign(1.0, side_difference);
+        target_heading = wrap_angle(pose.yaw + side * pi / 4);
+      } else if (have_guide_yaw_ && std::abs(heading_error) > .25) {
+        target_heading = guide_yaw_;
+      } else {
+        target_heading = wrap_angle(
+            (have_guide_yaw_ ? guide_yaw_ : pose.yaw) + pi);
+      }
+    } else if (have_guide_yaw_ && std::abs(heading_error) > .25) {
+      target_heading = guide_yaw_;
+    } else if (s.front.center_minimum_range < map.hard_radius() + .12) {
+      const bool left_open = s.left.distance > p_.dead_end_side_opening;
+      const bool right_open = s.right.distance > p_.dead_end_side_opening;
+      if (left_open)
+        target_heading = wrap_angle(pose.yaw + pi / 2);
+      else if (right_open)
+        target_heading = wrap_angle(pose.yaw - pi / 2);
+      else
+        target_heading = wrap_angle(
+            (have_guide_yaw_ ? guide_yaw_ : pose.yaw) + pi);
+    } else {
+      return std::nullopt;
+    }
+    const double error = wrap_angle(target_heading - pose.yaw);
+    if (std::abs(error) < .12)
+      return std::nullopt;
+    turn_in_place_ = true;
+    turn_heading_ = target_heading;
+    turn_path_.clear();
+    turn_index_ = 0;
+    have_anchor_ = false;
+    cached_reference_.clear();
+    cached_mode_ = LocalMode::following;
+    alignment_turn_direction_ = error > 0 ? 1 : -1;
+    double angular = std::clamp(2.8 * error - 0.9 * pose.angular_speed,
+                                -p_.max_angular, p_.max_angular);
+    if (std::abs(error) > .15 && std::abs(angular) < .18 &&
+        std::abs(pose.angular_speed) < .05)
+      angular = std::copysign(.18, error);
+    const double delta = p_.angular_command_acceleration * dt;
+    angular = std::clamp(angular, previous_command_angular_ - delta,
+                         previous_command_angular_ + delta);
+    previous_command_angular_ = angular;
+    filtered_target_angular_ = angular;
+    mode_ = LocalMode::u_turn;
+    reference_update_code_ = 13;
+    return WallCommand{0, angular};
+  };
+  const auto no_path_command = [&]() -> std::optional<WallCommand> {
+    const double heading_error =
+        have_guide_yaw_ ? wrap_angle(guide_yaw_ - pose.yaw) : 0.0;
+    const double speed = scan_probe_speed();
+    if (speed > .015) {
+      mode_ = LocalMode::following;
+      reference_update_code_ = 12;
+      const double steering =
+          have_guide_yaw_
+              ? std::clamp(1.2 * heading_error - .35 * pose.angular_speed,
+                           -.35, .35)
+              : std::clamp(-.35 * pose.angular_speed, -.35, .35);
+      previous_command_angular_ = steering;
+      filtered_target_angular_ = steering;
+      return WallCommand{speed, steering};
+    }
+    if (have_guide_yaw_ && std::abs(heading_error) > .25) {
+      if (const auto turn = opening_turn())
+        return turn;
+      return std::nullopt;
+    }
+    return opening_turn();
+  };
   // If scan registration puts the footprint just inside its inflated radius,
   // rotating or commanding zero cannot escape the local minimum. A short
   // reverse is allowed only through observed cells whose clearance improves
   // along the complete retreat segment.
   if (initial_clearance <=
-      std::max(0.0, map.hard_radius() - map.resolution())) {
+          std::max(0.0, map.hard_radius() - map.resolution()) &&
+      !turn_in_place_) {
     double previous = initial_clearance;
     bool retreat_clear = initial_clearance > 0;
     double retreat_end = initial_clearance;
@@ -1065,7 +1336,10 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
   // A newly observed obstacle may overlap an existing footprint. Only a
   // shallow overlap permits escape; unknown space and deep overlaps stop.
   if (initial_clearance <=
-      std::max(0.0, map.hard_radius() - map.resolution())) {
+          std::max(0.0, map.hard_radius() - map.resolution()) &&
+      !turn_in_place_) {
+    if (const auto command = no_path_command())
+      return *command;
     mode_ = LocalMode::blocked;
     previous_command_angular_ = 0;
     return {};
@@ -1141,6 +1415,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
       turn_path_.clear();
       turn_index_ = 0;
       guide_yaw_ = turn_heading_;
+      post_turn_probe_cooldown_ = 1.5;
       mode_ = LocalMode::following;
       have_anchor_ = false;
       previous_command_angular_ = 0;
@@ -1151,10 +1426,11 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
       candidate_reference = wall_reference(pose, map);
     } else {
       dt = std::clamp(dt, .01, .1);
-      double angular = std::clamp(2.8 * error, -p_.max_angular,
-                                  p_.max_angular);
-      if (std::abs(error) > .15 && std::abs(angular) < .45)
-        angular = std::copysign(.45, error);
+      double angular = std::clamp(2.8 * error - 0.9 * pose.angular_speed,
+                                  -p_.max_angular, p_.max_angular);
+      if (std::abs(error) > .15 && std::abs(angular) < .18 &&
+          std::abs(pose.angular_speed) < .05)
+        angular = std::copysign(.18, error);
       const double delta = p_.angular_command_acceleration * dt;
       angular = std::clamp(angular, previous_command_angular_ - delta,
                            previous_command_angular_ + delta);
@@ -1172,8 +1448,7 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     // still in a safe corridor. Preserve the last confirmed travel heading
     // and bridge the gap with a short checked segment instead of dropping the
     // reference and stopping before the next scan can rebuild it.
-    if (initial_clearance > map.hard_radius() + .01 &&
-        std::abs(pose.linear_speed) < .04 && have_guide_yaw_) {
+    if (initial_clearance > map.hard_radius() + .01 && have_guide_yaw_) {
       if (s.front.distance < .55) {
         const double open_limit = p_.dead_end_side_opening + .13;
         const bool left_open = s.left.distance > open_limit;
@@ -1210,6 +1485,40 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
           break;
         }
       }
+      // If the saved tangent is blocked, search short collision-free local
+      // bridges around it. This keeps an intermittent contour fit from
+      // replacing a usable path with zero velocity; the hard costmap remains
+      // the acceptance check for every candidate bridge.
+      if (reference_.size() < 2) {
+        constexpr std::array<double, 13> offsets{
+            0,          pi / 12,  -pi / 12, pi / 6,  -pi / 6,
+            pi / 4,     -pi / 4,  pi / 3,   -pi / 3, pi / 2,
+            -pi / 2,    5 * pi / 6, -5 * pi / 6};
+        for (double distance = .36; distance >= .12 && reference_.size() < 2;
+             distance -= .04) {
+          double best_score = -1e9;
+          WallPoint best_point{};
+          for (double offset : offsets) {
+            const double yaw = guide_yaw_ + offset;
+            const WallPoint ahead{pose.x + distance * std::cos(yaw),
+                                  pose.y + distance * std::sin(yaw)};
+            if (!map.line_clear({pose.x, pose.y}, ahead))
+              continue;
+            const double score = std::cos(offset) + .08 * std::sin(offset);
+            if (score > best_score) {
+              best_score = score;
+              best_point = ahead;
+            }
+          }
+          if (best_score > -1e8) {
+            reference_ = {{pose.x, pose.y}, best_point};
+            cached_reference_ = reference_;
+            cached_mode_ = LocalMode::following;
+            reference_update_code_ = 11;
+            mode_ = LocalMode::following;
+          }
+        }
+      }
       if (reference_.size() < 2) {
         const double error = wrap_angle(guide_yaw_ - pose.yaw);
         if (std::abs(error) > .12) {
@@ -1228,6 +1537,8 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     }
   }
   if (reference_.size() < 2) {
+    if (const auto command = no_path_command())
+      return *command;
     mode_ = LocalMode::blocked;
     previous_command_angular_ = 0;
     return {};
@@ -1500,7 +1811,14 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         predicted.yaw =
             wrap_angle(predicted.yaw + predicted.angular_speed * step);
         const double d = map.clearance(predicted.x, predicted.y);
-        if (d <= map.hard_radius()) {
+        // A pose can be a few millimetres inside the hard radius because the
+        // rolling lidar map is quantized. In recovery mode, permit a shallow
+        // initial overlap only while the predicted motion improves clearance;
+        // otherwise every candidate is rejected at its stationary reaction
+        // interval and the watchdog turns a recoverable state into a fault.
+        const double minimum_clearance =
+            std::min(map.hard_radius(), initial_clearance - 0.002);
+        if (d <= minimum_clearance) {
           valid = false;
           break;
         }
@@ -1578,6 +1896,10 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
         return {0, angular};
       }
     }
+    if (moving_candidates_ == 0) {
+      if (const auto command = no_path_command())
+        return *command;
+    }
     // If every forward arc collides, keep a safe stationary turn toward the
     // path tangent. Zeroing the command here at every rejected scan cycle
     // used to make a corner turn pulse on/off forever even when the robot had
@@ -1608,6 +1930,24 @@ WallCommand CostmapFollower::step(const WallPose &pose, const Sectors &s,
     chosen = tracking_command;
     best_path_ = std::move(tracking_path);
     predicted_clearance_ = tracking_clearance;
+  }
+  // A very short contour is not a stable tracking reference. Keep the last
+  // confirmed lane heading and use a scan-limited command until the next scan
+  // provides enough geometry to restore the path.
+  if (reference_candidate_points_ < 6 && mode_ != LocalMode::u_turn &&
+      mode_ != LocalMode::exiting) {
+    if (const auto command = no_path_command())
+      return *command;
+  }
+  // The sampler may find safe stationary rotations while rejecting every
+  // translating arc at a contour gap. If the scan still shows braking room in
+  // front, prefer a short straight probe to oscillating in place; the speed is
+  // bounded by the measured stopping distance and the next scan immediately
+  // gets another chance to rebuild the local path.
+  if (chosen.linear < .005 && moving_candidates_ == 0 &&
+      mode_ != LocalMode::u_turn) {
+    if (const auto command = no_path_command())
+      return *command;
   }
   previous_command_angular_ = chosen.angular;
   return chosen;

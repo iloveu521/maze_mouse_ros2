@@ -32,6 +32,7 @@ def generate_launch_description():
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('rviz_config', default_value=str(share / 'rviz' / 'maze.rviz')),
         DeclareLaunchArgument('paused', default_value='false'),
+        DeclareLaunchArgument('world', default_value=str(share / 'worlds' / 'maze.world')),
         *[DeclareLaunchArgument(key, default_value=str(spawn[key]))
           for key in ('x', 'y', 'z', 'yaw')],
         SetEnvironmentVariable('TURTLEBOT3_MODEL', 'burger'),
@@ -41,6 +42,7 @@ def generate_launch_description():
             launch_arguments={
                 'gui': LaunchConfiguration('gui'),
                 'paused': LaunchConfiguration('paused'),
+                'world': LaunchConfiguration('world'),
             }.items(),
         ),
         Node(
