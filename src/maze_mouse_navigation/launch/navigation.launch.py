@@ -18,7 +18,7 @@ def generate_launch_description():
         DeclareLaunchArgument('simulation', default_value='true'),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='true'),
-        DeclareLaunchArgument('controller', default_value='costmap_follower',
+        DeclareLaunchArgument('controller', default_value='left_wall_follower',
                              choices=['costmap_follower', 'left_wall_follower', 'maze_navigator']),
         DeclareLaunchArgument('params', default_value=PathJoinSubstitution([
             str(share), 'config', PythonExpression([

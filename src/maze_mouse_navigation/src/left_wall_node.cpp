@@ -1,4 +1,5 @@
 #include "maze_mouse_navigation/left_wall.hpp"
+#include "maze_mouse_navigation/local_costmap.hpp"
 #include <chrono>
 #include <csignal>
 #include <iomanip>
@@ -35,37 +36,52 @@ std::string number(double v) {
 class WallNode final : public rclcpp::Node {
 public:
   WallNode() : Node("maze_navigator") {
-    WallParameters p;
+    WallPathParameters p;
     const auto real = [this](const char *name, double value) {
       return declare_parameter<double>(name, value);
     };
     p.speed = real("max_linear_speed", p.speed);
-    p.approach_speed = real("approach_speed", p.approach_speed);
-    p.cell_size = real("cell_size", p.cell_size);
     p.wall_distance = real("desired_left_distance", p.wall_distance);
-    p.opening_distance = real("opening_distance", p.opening_distance);
-    p.front_turn_distance = real("front_turn_distance", p.front_turn_distance);
-    p.front_stop_distance = real("front_stop_distance", p.front_stop_distance);
-    p.side_stop_distance = real("side_stop_distance", p.side_stop_distance);
+    p.lookahead = real("pursuit_lookahead", p.lookahead);
+    p.lookahead_gain = real("pursuit_lookahead_gain", p.lookahead_gain);
+    p.max_lookahead = real("pursuit_lookahead_max", p.max_lookahead);
+    p.turn_speed = real("turn_speed", p.turn_speed);
+    p.min_turn_radius = real("min_turn_radius", p.min_turn_radius);
+    p.max_turn_radius = real("max_turn_radius", p.max_turn_radius);
+    p.max_lateral_acceleration =
+        real("max_lateral_acceleration", p.max_lateral_acceleration);
+    p.spin_clearance = real("spin_clearance", p.spin_clearance);
     p.max_angular_speed = real("max_angular_speed", p.max_angular_speed);
-    p.acceleration = real("linear_acceleration", p.acceleration);
-    p.deceleration = real("linear_deceleration", p.deceleration);
+    p.linear_acceleration = real("linear_acceleration", p.linear_acceleration);
+    p.linear_deceleration = real("linear_deceleration", p.linear_deceleration);
+    p.angular_acceleration =
+        real("angular_command_acceleration", p.angular_acceleration);
     p.heading_gain = real("heading_gain", p.heading_gain);
-    p.wall_gain = real("wall_gain", p.wall_gain);
+    p.lateral_gain = real("lateral_gain", p.lateral_gain);
     p.angular_damping = real("angular_damping", p.angular_damping);
     p.goal_x = real("goal_x", p.goal_x);
     p.goal_y = real("goal_y", p.goal_y);
-    p.goal_yaw = real("goal_yaw", p.goal_yaw);
     p.goal_tolerance = real("goal_tolerance", p.goal_tolerance);
-    p.opening_scans = declare_parameter<int>("opening_scans", p.opening_scans);
-    follower_ = std::make_unique<LeftWallFollower>(p);
+    CostmapParameters map_parameters;
+    map_parameters.resolution = real("costmap_resolution", 0.04);
+    map_parameters.size = real("costmap_size", 4.0);
+    map_parameters.robot_radius = real("robot_radius", 0.14);
+    map_parameters.safety_margin = real("inflation_margin", 0.04);
+    map_parameters.soft_radius = real("soft_cost_radius", 0.38);
+    map_parameters.side_sector_degrees = real("side_sector_width_deg", 60.0);
+    map_parameters.front_sector_degrees = real("front_sector_width_deg", 90.0);
+    map_parameters.minimum_wall_length = real("minimum_wall_length", 0.24);
+    map_parameters.wall_fit_tolerance = real("wall_fit_tolerance", 0.025);
+    map_parameters.laser_x = real("laser_offset_x", -0.032);
+    map_parameters.laser_y = real("laser_offset_y", 0.0);
+    map_parameters.laser_yaw = real("laser_yaw", 0.0);
+    map_ = std::make_unique<LocalCostmap>(map_parameters);
+    follower_ = std::make_unique<WallPathFollower>(p);
     start_x_ = real("start_x", 0.5);
     start_y_ = real("start_y", 0.5);
     start_yaw_ = real("start_yaw", 0.0);
-    width_ = real("sector_width_deg", 30) * pi / 180.0;
     timeout_ = real("data_timeout", 0.7);
-    if (!(width_ > 0 && width_ <= pi / 2) || !(timeout_ > 0) ||
-        !std::isfinite(timeout_) || !std::isfinite(start_x_) ||
+    if (!(timeout_ > 0) || !std::isfinite(timeout_) || !std::isfinite(start_x_) ||
         !std::isfinite(start_y_) || !std::isfinite(start_yaw_)) {
       throw std::invalid_argument("Invalid scan/frame parameters");
     }
@@ -81,12 +97,11 @@ public:
     scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
         "scan", rclcpp::SensorDataQoS(),
         [this](sensor_msgs::msg::LaserScan::ConstSharedPtr scan) {
-          const auto sector = [&](double center) {
-            return extract_sector(scan->ranges, scan->angle_min,
-                                  scan->angle_increment, scan->range_min,
-                                  scan->range_max, center, width_);
-          };
-          sectors_ = {sector(0), sector(pi / 2), sector(-pi / 2)};
+          valid_map_ = have_odom_ && map_->update(
+                                         pose_, scan->ranges, scan->angle_min,
+                                         scan->angle_increment,
+                                         scan->range_min, scan->range_max);
+          sectors_ = valid_map_ ? map_->scan_geometry().sectors : Sectors{};
           ++scan_id_;
           scan_received_ = Clock::now();
           have_scan_ = true;
@@ -141,9 +156,9 @@ public:
     timer_ = create_wall_timer(50ms, [this] { tick(); });
     RCLCPP_INFO(
         get_logger(),
-        "C++20 left-wall follower: straight target %.2f m/s, approach %.2f "
-        "m/s, no flood planning",
-        p.speed, p.approach_speed);
+        "C++20 left-wall path follower: speed %.2f m/s, lookahead %.2f m, "
+        "turn radius %.2f-%.2f m",
+        p.speed, p.lookahead, p.min_turn_radius, p.max_turn_radius);
   }
 
   void stop_robot() { publish_command({}); }
@@ -174,7 +189,7 @@ private:
     const double dt = time > last_time_ ? time - last_time_ : 0.05;
     last_time_ = time;
     ready_ =
-        have_odom_ && have_scan_ && sectors_.usable() &&
+        have_odom_ && have_scan_ && valid_map_ && sectors_.usable() &&
         std::chrono::duration<double>(wall_time - scan_received_).count() <=
             timeout_ &&
         std::chrono::duration<double>(wall_time - odom_received_).count() <=
@@ -186,17 +201,17 @@ private:
     if (!running_) {
       stop_robot();
     } else {
-      publish_command(follower_->step(pose_, sectors_, scan_id_, dt, ready_));
+      publish_command(follower_->step(pose_, *map_, dt, ready_));
     }
     const auto mode = follower_->mode();
     if (mode != previous_mode_) {
       RCLCPP_INFO(get_logger(),
                   "%s: pose=(%.3f,%.3f,%.3f), left=%.3f front=%.3f right=%.3f",
-                  wall_mode_name(mode), pose_.x, pose_.y, pose_.yaw,
+                  wall_path_mode_name(mode), pose_.x, pose_.y, pose_.yaw,
                   sectors_.left.distance, sectors_.front.distance,
                   sectors_.right.distance);
       previous_mode_ = mode;
-      if (mode == WallMode::complete || mode == WallMode::fault) {
+      if (mode == WallPathMode::complete) {
         elapsed_ = time - started_;
       }
     }
@@ -207,7 +222,7 @@ private:
     nav_msgs::msg::Path path;
     path.header.frame_id = frame_;
     path.header.stamp = now();
-    for (const auto p : follower_->local_path()) {
+    for (const auto p : follower_->path()) {
       path.poses.push_back(odom_point(p.x, p.y));
     }
     path_pub_->publish(path);
@@ -228,40 +243,52 @@ private:
     }
     std::ostringstream out;
     out << "{\"algorithm\":\"left_wall\",\"state\":\""
-        << (running_ ? wall_mode_name(mode) : "WAITING")
+        << (running_ ? wall_path_mode_name(mode) : "WAITING")
         << "\",\"data_ready\":" << (ready_ ? "true" : "false") << ",\"pose\":["
         << number(pose_.x) << ',' << number(pose_.y) << ',' << number(pose_.yaw)
         << "],\"front\":" << number(sectors_.front.distance)
         << ",\"left\":" << number(sectors_.left.distance)
         << ",\"right\":" << number(sectors_.right.distance)
+        << ",\"cross_track_error\":"
+        << number(follower_->cross_track_error())
+        << ",\"target_speed\":" << number(follower_->target_speed())
+        << ",\"target_angular\":" << number(follower_->target_angular())
+        << ",\"left_opening\":"
+        << (follower_->left_opening() ? "true" : "false")
+        << ",\"left_arc_available\":"
+        << (follower_->left_arc_available() ? "true" : "false")
+        << ",\"forward_available\":"
+        << (follower_->forward_available() ? "true" : "false")
         << ",\"command_speed\":" << number(last_command_.linear)
         << ",\"max_command_speed\":" << number(max_command_speed_)
         << ",\"max_measured_speed\":" << number(max_measured_speed_)
         << ",\"left_turns\":" << follower_->left_turns()
         << ",\"right_turns\":" << follower_->right_turns()
-        << ",\"u_turns\":" << follower_->u_turns()
+        << ",\"arc_uturns\":" << follower_->arc_uturns()
+        << ",\"spin_uturns\":" << follower_->spin_uturns()
         << ",\"odom_distance_m\":" << number(distance_)
         << ",\"minimum_laser_range_m\":" << number(minimum_scan_)
         << ",\"elapsed_sim_s\":"
         << number(elapsed_ >= 0 ? elapsed_ : (running_ ? time - started_ : 0))
-        << ",\"reason\":\"" << follower_->reason() << "\"}";
+        << "}";
     std_msgs::msg::String status;
     status.data = out.str();
     status_pub_->publish(status);
   }
 
-  std::unique_ptr<LeftWallFollower> follower_;
+  std::unique_ptr<WallPathFollower> follower_;
+  std::unique_ptr<LocalCostmap> map_;
   WallPose pose_{};
   Sectors sectors_{};
   WallCommand last_command_{};
-  WallMode previous_mode_{WallMode::following};
+  WallPathMode previous_mode_{WallPathMode::waiting};
   double start_x_{}, start_y_{}, start_yaw_{}, rotation_{}, anchor_x_{},
       anchor_y_{};
-  double odom_x_{}, odom_y_{}, odom_yaw_{}, width_{}, timeout_{}, last_time_{},
+  double odom_x_{}, odom_y_{}, odom_yaw_{}, timeout_{}, last_time_{},
       started_{};
   double distance_{}, minimum_scan_{std::numeric_limits<double>::infinity()},
       max_command_speed_{}, max_measured_speed_{}, elapsed_{-1};
-  bool have_scan_{}, have_odom_{}, ready_{}, running_{};
+  bool have_scan_{}, have_odom_{}, ready_{}, running_{}, valid_map_{};
   std::uint64_t scan_id_{}, ticks_{};
   std::string frame_{"odom"};
   Clock::time_point scan_received_{}, odom_received_{};

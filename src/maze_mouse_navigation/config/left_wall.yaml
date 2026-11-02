@@ -8,20 +8,36 @@ maze_navigator:
     goal_y: 5.5
     goal_yaw: 0.0
     goal_tolerance: 0.14
-    sector_width_deg: 30.0
-    cell_size: 1.0  # local junction de-duplication only; no maze map/search
-    max_linear_speed: 0.5  # Gazebo straight-line target, m/s
-    approach_speed: 0.20
-    desired_left_distance: 0.40
-    opening_distance: 0.78
-    opening_scans: 2
-    front_turn_distance: 0.82
-    front_stop_distance: 0.20
-    side_stop_distance: 0.14
-    max_angular_speed: 0.6
+    # Full 360-degree scan feeds one rolling local costmap. The controller
+    # chooses and latches path primitives; these are not independent sectors.
+    costmap_resolution: 0.04
+    costmap_size: 4.0
+    robot_radius: 0.12
+    inflation_margin: 0.00
+    soft_cost_radius: 0.38
+    side_sector_width_deg: 60.0
+    front_sector_width_deg: 90.0
+    minimum_wall_length: 0.24
+    wall_fit_tolerance: 0.025
+    laser_offset_x: -0.032
+    laser_offset_y: 0.0
+    laser_yaw: 0.0
+    max_linear_speed: 0.5
+    # Burger's center should stay near the 0.44 m corridor midpoint.
+    desired_left_distance: 0.44
+    pursuit_lookahead: 0.55
+    pursuit_lookahead_gain: 0.35
+    pursuit_lookahead_max: 0.90
+    turn_speed: 0.18
+    min_turn_radius: 0.14
+    max_turn_radius: 0.42
+    max_lateral_acceleration: 0.55
+    spin_clearance: 0.035
+    max_angular_speed: 1.8
     linear_acceleration: 0.8
-    linear_deceleration: 1.2
-    heading_gain: 1.6
-    wall_gain: 1.5
+    linear_deceleration: 1.0
+    angular_command_acceleration: 2.5
+    heading_gain: 1.2
+    lateral_gain: 2.0
     angular_damping: 0.25
     data_timeout: 0.7
