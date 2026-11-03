@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="720" viewBox="0 0 1100 720">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a"/>
+    </marker>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#ffffff"/>
+
+  <text x="40" y="46" font-family="sans-serif" font-size="25" font-weight="700" fill="#0f172a">maze_mouse_ws — online occupancy A* navigation</text>
+  <text x="40" y="72" font-family="sans-serif" font-size="14" fill="#475569">ROS 2 Humble · C++20 · TurtleBot3 Burger · Gazebo Classic 11 · lidar-only mapping, no preset map</text>
+
+  <!-- Gazebo -->
+  <rect x="40" y="110" width="250" height="170" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+  <text x="62" y="144" font-family="sans-serif" font-size="18" font-weight="700" fill="#3730a3">Gazebo Classic 11</text>
+  <text x="62" y="172" font-family="sans-serif" font-size="14" fill="#1e293b">maze.world (10 × 10 m)</text>
+  <text x="62" y="196" font-family="sans-serif" font-size="14" fill="#1e293b">TurtleBot3 Burger</text>
+  <text x="62" y="220" font-family="sans-serif" font-size="14" fill="#1e293b">360° lidar · 3.5 m range</text>
+  <text x="62" y="244" font-family="sans-serif" font-size="14" fill="#1e293b">differential drive</text>
+
+  <!-- RViz -->
+  <rect x="40" y="470" width="250" height="140" rx="12" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+  <text x="62" y="504" font-family="sans-serif" font-size="18" font-weight="700" fill="#166534">RViz2</text>
+  <text x="62" y="532" font-family="sans-serif" font-size="13" fill="#1e293b">/maze_mouse/plan</text>
+  <text x="62" y="554" font-family="sans-serif" font-size="13" fill="#1e293b">/maze_mouse/reference</text>
+  <text x="62" y="576" font-family="sans-serif" font-size="13" fill="#1e293b">/trajectory · /status</text>
+  <text x="62" y="598" font-family="sans-serif" font-size="12" fill="#64748b">occupancy grid + costmap</text>
+
+  <!-- costmap_node -->
+  <rect x="360" y="90" width="520" height="570" rx="16" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+  <text x="386" y="124" font-family="sans-serif" font-size="19" font-weight="700" fill="#0f172a">costmap_node (C++20)</text>
+  <text x="386" y="146" font-family="sans-serif" font-size="13" fill="#64748b">single process: map → global plan → local tracking</text>
+
+  <!-- LocalCostmap -->
+  <rect x="390" y="165" width="460" height="115" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+  <text x="412" y="196" font-family="sans-serif" font-size="17" font-weight="700" fill="#075985">LocalCostmap</text>
+  <text x="412" y="222" font-family="sans-serif" font-size="13" fill="#0f172a">fixed 14 m × 14 m grid @ 0.04 m</text>
+  <text x="412" y="244" font-family="sans-serif" font-size="13" fill="#0f172a">ray clearing · odds accumulation · Euclidean distance field</text>
+  <text x="412" y="266" font-family="sans-serif" font-size="12" fill="#475569">unknown cells are not traversable</text>
+
+  <!-- GlobalPlanner -->
+  <rect x="390" y="330" width="460" height="125" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="412" y="361" font-family="sans-serif" font-size="17" font-weight="700" fill="#92400e">GlobalPlanner</text>
+  <text x="412" y="387" font-family="sans-serif" font-size="13" fill="#0f172a">8-connected A* · clearance cost 5.0 · goal 0.45 m</text>
+  <text x="412" y="409" font-family="sans-serif" font-size="13" fill="#0f172a">supercover smoothing keeps ≥ 0.32 m clearance</text>
+  <text x="412" y="431" font-family="sans-serif" font-size="13" fill="#0f172a">direct goal when reachable, otherwise frontier exploration</text>
+
+  <!-- CostmapFollower -->
+  <rect x="390" y="505" width="460" height="130" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="412" y="536" font-family="sans-serif" font-size="17" font-weight="700" fill="#991b1b">CostmapFollower</text>
+  <text x="412" y="562" font-family="sans-serif" font-size="13" fill="#0f172a">Pure Pursuit · adaptive lookahead 0.45–0.70 m</text>
+  <text x="412" y="584" font-family="sans-serif" font-size="13" fill="#0f172a">predicted-trajectory collision sampler · tracking floor</text>
+  <text x="412" y="606" font-family="sans-serif" font-size="13" fill="#0f172a">clearance governor · latched low-speed recovery</text>
+
+  <!-- internal arrows -->
+  <line x1="620" y1="280" x2="620" y2="330" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="632" y="310" font-family="sans-serif" font-size="12" fill="#475569">replan ~2 Hz</text>
+  <line x1="620" y1="455" x2="620" y2="505" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="632" y="485" font-family="sans-serif" font-size="12" fill="#475569">control 20 Hz</text>
+
+  <!-- sensors -->
+  <line x1="290" y1="210" x2="390" y2="210" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+  <text x="296" y="199" font-family="sans-serif" font-size="13" fill="#1d4ed8">/scan · /odom</text>
+
+  <!-- cmd_vel loop -->
+  <path d="M 620 635 L 620 680 L 320 680 L 320 300 L 165 300 L 165 280" fill="none" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrow-green)"/>
+  <text x="330" y="700" font-family="sans-serif" font-size="13" fill="#15803d">/cmd_vel</text>
+
+  <!-- topics to RViz -->
+  <line x1="390" y1="540" x2="290" y2="540" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-green)"/>
+  <text x="296" y="528" font-family="sans-serif" font-size="11" fill="#15803d">topics</text>
+
+  <!-- legend -->
+  <rect x="920" y="600" width="140" height="74" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <line x1="934" y1="622" x2="970" y2="622" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+  <text x="978" y="626" font-family="sans-serif" font-size="11" fill="#334155">data</text>
+  <line x1="934" y1="646" x2="970" y2="646" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-green)"/>
+  <text x="978" y="650" font-family="sans-serif" font-size="11" fill="#334155">visualization</text>
+</svg>

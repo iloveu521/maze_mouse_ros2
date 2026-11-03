@@ -9,18 +9,11 @@ ScanGeometry analyse_scan(std::span<const float> ranges, double amin,
                           ScanGeometryParameters p) {
   ScanGeometry out;
   out.sectors = {extract_sector(ranges, amin, inc, rmin, rmax, 0,
-                                p.front_degrees * pi / 180, 0.6,
-                                p.swept_half_width),
+                                p.front_degrees * pi / 180),
                  extract_sector(ranges, amin, inc, rmin, rmax, pi / 2,
-                                p.side_degrees * pi / 180, 0.6,
-                                p.swept_half_width),
+                                p.side_degrees * pi / 180),
                  extract_sector(ranges, amin, inc, rmin, rmax, -pi / 2,
-                                p.side_degrees * pi / 180, 0.6,
-                                p.swept_half_width)};
-  for (const float raw : ranges)
-    if (std::isfinite(raw) && raw >= rmin && raw <= rmax)
-      out.sectors.all_minimum_range =
-          std::min(out.sectors.all_minimum_range, static_cast<double>(raw));
+                                p.side_degrees * pi / 180)};
   if (ranges.empty() || !std::isfinite(inc) || inc == 0)
     return out;
   std::vector<WallPoint> points(ranges.size());

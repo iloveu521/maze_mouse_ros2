@@ -1,5 +1,7 @@
+#include "geometry_msgs/msg/point_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/vector3_stamped.hpp"
+#include "maze_mouse_navigation/global_planner.hpp"
 #include "maze_mouse_navigation/local_costmap.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -10,8 +12,10 @@
 #include <chrono>
 #include <csignal>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <thread>
 #include <unordered_map>
 
@@ -30,6 +34,17 @@ std::string number(double v) {
   s << std::setprecision(9) << v;
   return s.str();
 }
+const char *target_name(PlannerTarget target) {
+  switch (target) {
+  case PlannerTarget::goal:
+    return "goal";
+  case PlannerTarget::frontier:
+    return "frontier";
+  case PlannerTarget::none:
+    return "none";
+  }
+  return "none";
+}
 } // namespace
 class CostmapNode final : public rclcpp::Node {
 public:
@@ -37,12 +52,6 @@ public:
     auto real = [this](const char *n, double d) {
       return declare_parameter<double>(n, d);
     };
-    CostmapParameters m;
-    for (const auto &[name, field] : map_fields_)
-      m.*field = real(name.c_str(), m.*field);
-    map_ = std::make_unique<LocalCostmap>(m);
-    robot_radius_ = m.robot_radius;
-    margin_ = m.safety_margin;
     LocalPlannerParameters p;
     for (const auto &[name, field] : planner_fields_)
       p.*field = real(name.c_str(), p.*field);
@@ -50,16 +59,47 @@ public:
         declare_parameter<int>("linear_samples", p.linear_samples);
     p.angular_samples =
         declare_parameter<int>("angular_samples", p.angular_samples);
-    if (p.wall_distance <= m.robot_radius + m.safety_margin)
-      throw std::invalid_argument(
-          "Wall contour distance must exceed hard inflation radius");
-    planner_ = std::make_unique<CostmapFollower>(p);
-    map_parameters_ = m;
-    planner_parameters_ = p;
     start_x_ = real("start_x", 0.5);
     start_y_ = real("start_y", 0.5);
     start_yaw_ = real("start_yaw", 0);
     timeout_ = real("data_timeout", 0.7);
+
+    CostmapParameters m;
+    m.size = real("costmap_size", m.size);
+    m.resolution = real("costmap_resolution", m.resolution);
+    const double default_origin_x =
+        0.5 * (start_x_ + p.goal_x) - 0.5 * m.size;
+    const double default_origin_y =
+        0.5 * (start_y_ + p.goal_y) - 0.5 * m.size;
+    for (const auto &[name, field] : map_fields_) {
+      if (name == "costmap_size" || name == "costmap_resolution")
+        continue;
+      if (name == "costmap_origin_x")
+        m.origin_x = real(name.c_str(), default_origin_x);
+      else if (name == "costmap_origin_y")
+        m.origin_y = real(name.c_str(), default_origin_y);
+      else
+        m.*field = real(name.c_str(), m.*field);
+    }
+    m.fixed = declare_parameter<bool>("costmap_fixed", false);
+    map_ = std::make_unique<LocalCostmap>(m);
+    if (m.fixed &&
+        (!map_->contains(start_x_, start_y_) ||
+         !map_->contains(p.goal_x, p.goal_y)))
+      throw std::invalid_argument(
+          "costmap_size/costmap_origin must cover start and goal");
+    robot_radius_ = m.robot_radius;
+    margin_ = m.safety_margin;
+
+    GlobalPlannerParameters g;
+    for (const auto &[name, field] : global_fields_)
+      g.*field = real(name.c_str(), g.*field);
+    global_ = std::make_unique<GlobalPlanner>(g);
+
+    planner_ = std::make_unique<CostmapFollower>(p);
+    map_parameters_ = m;
+    planner_parameters_ = p;
+    global_parameters_ = g;
     if (!std::isfinite(start_x_) || !std::isfinite(start_y_) ||
         !std::isfinite(start_yaw_) || !(timeout_ > 0) ||
         !std::isfinite(timeout_))
@@ -70,14 +110,20 @@ public:
           try {
             auto m = map_parameters_;
             auto p = planner_parameters_;
+            auto g = global_parameters_;
             for (const auto &parameter : parameters) {
               const auto &name = parameter.get_name();
-              if (auto field = map_fields_.find(name);
-                  field != map_fields_.end())
+              if (name == "costmap_fixed")
+                m.fixed = parameter.as_bool();
+              else if (auto field = map_fields_.find(name);
+                       field != map_fields_.end())
                 m.*(field->second) = parameter.as_double();
               else if (auto field = planner_fields_.find(name);
                        field != planner_fields_.end())
                 p.*(field->second) = parameter.as_double();
+              else if (auto field = global_fields_.find(name);
+                       field != global_fields_.end())
+                g.*(field->second) = parameter.as_double();
               else if (name == "linear_samples")
                 p.linear_samples = parameter.as_int();
               else if (name == "angular_samples")
@@ -93,16 +139,31 @@ public:
             }
             LocalCostmap checked_map(m);
             CostmapFollower checked_planner(p);
-            if (p.wall_distance <= m.robot_radius + m.safety_margin)
+            GlobalPlanner checked_global(g);
+            if (m.fixed &&
+                (!checked_map.contains(start_x_, start_y_) ||
+                 !checked_map.contains(p.goal_x, p.goal_y)))
               throw std::invalid_argument(
-                  "Wall contour distance must exceed hard inflation radius");
+                  "costmap_size/costmap_origin must cover start and goal");
+            const bool map_reset =
+                m.resolution != map_parameters_.resolution ||
+                m.size != map_parameters_.size || m.fixed != map_parameters_.fixed ||
+                m.origin_x != map_parameters_.origin_x ||
+                m.origin_y != map_parameters_.origin_y ||
+                m.laser_x != map_parameters_.laser_x ||
+                m.laser_y != map_parameters_.laser_y ||
+                m.laser_yaw != map_parameters_.laser_yaw;
             map_->configure(m);
             valid_map_ = map_->ready();
             planner_->configure(p);
+            global_->configure(g);
             map_parameters_ = m;
             planner_parameters_ = p;
+            global_parameters_ = g;
             robot_radius_ = m.robot_radius;
             margin_ = m.safety_margin;
+            if (map_reset)
+              global_->invalidate();
             ++parameter_updates_;
             RCLCPP_INFO(
                 get_logger(),
@@ -122,10 +183,13 @@ public:
     status_pub_ =
         create_publisher<std_msgs::msg::String>("maze_mouse/status", qos);
     path_pub_ = create_publisher<nav_msgs::msg::Path>("maze_mouse/path", qos);
+    plan_pub_ = create_publisher<nav_msgs::msg::Path>("maze_mouse/plan", qos);
     reference_pub_ =
         create_publisher<nav_msgs::msg::Path>("maze_mouse/reference", qos);
     trajectory_pub_ =
         create_publisher<nav_msgs::msg::Path>("maze_mouse/trajectory", qos);
+    frontier_pub_ = create_publisher<geometry_msgs::msg::PointStamped>(
+        "maze_mouse/frontier", qos);
     raw_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(
         "maze_mouse/obstacles", qos);
     map_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>(
@@ -185,10 +249,10 @@ public:
     last_time_ = now().seconds();
     timer_ = create_wall_timer(50ms, [this] { tick(); });
     RCLCPP_INFO(get_logger(),
-                "C++20 laser costmap: body radius %.3f + margin %.3f = %.3f m; "
-                "target %.2f m/s; no maze-cell centres",
+                "C++20 global A* costmap: body radius %.3f + margin %.3f = "
+                "%.3f m; target %.2f m/s; fixed map %s",
                 m.robot_radius, m.safety_margin, map_->hard_radius(),
-                p.max_speed);
+                p.max_speed, m.fixed ? "on" : "off");
   }
   void stop_robot() { publish_command({}); }
 
@@ -241,19 +305,34 @@ private:
       started_ = time;
       progress_time_ = time;
       progress_ = {pose_.x, pose_.y};
+      forced_replan_ = false;
     }
     if (running_ &&
         std::hypot(pose_.x - progress_.x, pose_.y - progress_.y) > 0.10) {
       progress_ = {pose_.x, pose_.y};
       progress_time_ = time;
+      forced_replan_ = false;
     }
-    if (running_ && ready && planner_->mode() != LocalMode::complete &&
-        time - progress_time_ > 15) {
+    const bool no_progress = running_ && ready && time - progress_time_ > 15;
+    const bool force_replan =
+        running_ && ready && !forced_replan_ && time - progress_time_ > 5;
+    if (force_replan) {
+      forced_replan_ = true;
+      global_->invalidate();
+    }
+    if (no_progress && !global_->exhausted() &&
+        planner_->mode() != LocalMode::complete)
       fault_ = "No translational progress for 15 seconds";
-    }
     const auto before = Clock::now();
-    auto command =
-        planner_->step(pose_, sectors_, *map_, dt, ready && fault_.empty());
+    if (running_ && ready) {
+      global_->update(pose_, *map_, dt, {planner_parameters_.goal_x,
+                                         planner_parameters_.goal_y},
+                      false);
+      max_global_planner_ms_ =
+          std::max(max_global_planner_ms_, global_->plan_ms());
+    }
+    auto command = planner_->step(
+        pose_, sectors_, *map_, dt, ready && fault_.empty(), global_->path());
     computation_ms_ =
         std::chrono::duration<double, std::milli>(Clock::now() - before)
             .count();
@@ -263,12 +342,23 @@ private:
     if (running_ && planner_->mode() != LocalMode::complete &&
         std::abs(pose_.linear_speed) < 0.03)
       stopped_seconds_ += dt;
+    if (running_ && ready && global_->exhausted() &&
+        planner_->mode() == LocalMode::blocked)
+      exhausted_seconds_ += dt;
+    else
+      exhausted_seconds_ = 0;
+    if (exhausted_seconds_ > 1.5)
+      no_frontier_ = true;
+    else if (global_->path().size() >= 2)
+      no_frontier_ = false;
     const std::string state =
         !fault_.empty()
             ? "FAULT"
-            : (!running_ ? "WAITING"
-                         : (!ready ? "WAIT_FOR_DATA"
-                                   : local_mode_name(planner_->mode())));
+            : (no_frontier_ ? "NO_FRONTIER"
+                            : (!running_ ? "WAITING"
+                                         : (!ready ? "WAIT_FOR_DATA"
+                                                   : local_mode_name(
+                                                         planner_->mode()))));
     if (state != previous_state_) {
       RCLCPP_INFO(get_logger(),
                   "%s pose=(%.3f,%.3f,%.3f), costmap clearance=%.3f",
@@ -276,7 +366,8 @@ private:
                   map_->clearance(pose_.x, pose_.y));
       previous_state_ = state;
     }
-    if (elapsed_ < 0 && (state == "COMPLETE" || state == "FAULT"))
+    if (elapsed_ < 0 &&
+        (state == "COMPLETE" || state == "FAULT" || state == "NO_FRONTIER"))
       elapsed_ = time - started_;
     if (++ticks_ % 5 != 0)
       return;
@@ -287,9 +378,24 @@ private:
       path.poses.push_back(point(p.x, p.y));
     path_pub_->publish(path);
     path.poses.clear();
+    for (auto p : global_->path())
+      path.poses.push_back(point(p.x, p.y));
+    plan_pub_->publish(path);
+    path.poses.clear();
     for (auto p : planner_->reference())
       path.poses.push_back(point(p.x, p.y));
     reference_pub_->publish(path);
+    geometry_msgs::msg::PointStamped frontier;
+    frontier.header.frame_id = frame_;
+    frontier.header.stamp = now();
+    if (global_->target() == PlannerTarget::frontier) {
+      frontier.point.x = global_->target_point().x;
+      frontier.point.y = global_->target_point().y;
+    } else {
+      frontier.point.x = std::numeric_limits<double>::quiet_NaN();
+      frontier.point.y = std::numeric_limits<double>::quiet_NaN();
+    }
+    frontier_pub_->publish(frontier);
     if (have_odom_) {
       auto p = point(pose_.x, pose_.y);
       if (trajectory_.poses.empty() ||
@@ -304,8 +410,11 @@ private:
       trajectory_.header = path.header;
       trajectory_pub_->publish(trajectory_);
     }
+    const double goal_distance = std::hypot(
+        planner_parameters_.goal_x - pose_.x,
+        planner_parameters_.goal_y - pose_.y);
     std::ostringstream out;
-    out << "{\"algorithm\":\"laser_costmap\",\"state\":\"" << state
+    out << "{\"algorithm\":\"occupancy_astar\",\"state\":\"" << state
         << "\",\"data_ready\":" << (ready ? "true" : "false") << ",\"pose\":["
         << number(pose_.x) << ',' << number(pose_.y) << ',' << number(pose_.yaw)
         << "],\"command_speed\":" << number(command.linear)
@@ -322,6 +431,8 @@ private:
         << ",\"hard_inflation_radius\":" << number(map_->hard_radius())
         << ",\"costmap_clearance\":"
         << number(map_->clearance(pose_.x, pose_.y))
+        << ",\"tracking_clearance\":"
+        << number(map_->tracking_clearance(pose_.x, pose_.y))
         << ",\"predicted_clearance\":"
         << number(planner_->predicted_clearance())
         << ",\"tracking_error\":" << number(planner_->tracking_error())
@@ -341,21 +452,33 @@ private:
         << ",\"front_center_minimum_range\":"
         << number(sectors_.front.center_minimum_range)
         << ",\"left\":" << number(sectors_.left.distance)
-        << ",\"left_minimum_range\":"
-        << number(sectors_.left.minimum_range)
+        << ",\"left_minimum_range\":" << number(sectors_.left.minimum_range)
         << ",\"right\":" << number(sectors_.right.distance)
-        << ",\"right_minimum_range\":"
-        << number(sectors_.right.minimum_range)
+        << ",\"right_minimum_range\":" << number(sectors_.right.minimum_range)
         << ",\"side_sector_width_deg\":"
         << number(map_parameters_.side_sector_degrees)
         << ",\"front_sector_width_deg\":"
         << number(map_parameters_.front_sector_degrees)
-        << ",\"guide_wall_segments\":" << map_->guide_walls().size()
-        << ",\"short_faces_ignored\":" << map_->scan_geometry().short_faces
-        << ",\"navigation_heading\":" << number(planner_->navigation_heading())
-        << ",\"dead_ends\":" << planner_->dead_ends()
-        << ",\"dead_end_front_distance\":"
-        << number(planner_->dead_end_front_distance())
+        << ",\"goal_distance\":" << number(goal_distance)
+        << ",\"planner_target\":\"" << target_name(global_->target()) << "\""
+        << ",\"frontier_x\":"
+        << (global_->target() == PlannerTarget::frontier
+                ? number(global_->target_point().x)
+                : "null")
+        << ",\"frontier_y\":"
+        << (global_->target() == PlannerTarget::frontier
+                ? number(global_->target_point().y)
+                : "null")
+        << ",\"replans\":" << global_->replans()
+        << ",\"frontier_candidates\":" << global_->frontier_candidates()
+        << ",\"exploration_exhausted\":"
+        << (global_->exhausted() ? "true" : "false")
+        << ",\"global_planner_ms\":" << number(global_->plan_ms())
+        << ",\"max_global_planner_ms\":" << number(max_global_planner_ms_)
+        << ",\"path_points\":" << global_->path().size()
+        << ",\"path_length_m\":" << number(global_->path_length())
+        << ",\"path_remaining_m\":"
+        << number(global_->path_remaining(pose_))
         << ",\"odom_distance_m\":" << number(distance_)
         << ",\"minimum_laser_range_m\":" << number(min_scan_)
         << ",\"elapsed_sim_s\":"
@@ -371,6 +494,8 @@ private:
       map_fields_{
           {"costmap_resolution", &CostmapParameters::resolution},
           {"costmap_size", &CostmapParameters::size},
+          {"costmap_origin_x", &CostmapParameters::origin_x},
+          {"costmap_origin_y", &CostmapParameters::origin_y},
           {"robot_radius", &CostmapParameters::robot_radius},
           {"inflation_margin", &CostmapParameters::safety_margin},
           {"soft_cost_radius", &CostmapParameters::soft_radius},
@@ -391,16 +516,6 @@ private:
            &LocalPlannerParameters::angular_acceleration},
           {"prediction_horizon", &LocalPlannerParameters::horizon},
           {"reaction_time", &LocalPlannerParameters::reaction_time},
-          {"desired_left_distance", &LocalPlannerParameters::wall_distance},
-          {"target_lookahead", &LocalPlannerParameters::target_lookahead},
-          {"target_tolerance", &LocalPlannerParameters::target_tolerance},
-          {"wall_target_offset", &LocalPlannerParameters::wall_offset},
-          {"recovery_enter_margin", &LocalPlannerParameters::recovery_enter},
-          {"recovery_exit_margin", &LocalPlannerParameters::recovery_exit},
-          {"recovery_speed", &LocalPlannerParameters::recovery_speed},
-          {"no_path_probe_speed",
-           &LocalPlannerParameters::no_path_probe_speed},
-          {"rotation_radius", &LocalPlannerParameters::rotation_radius},
           {"heading_stop_angle", &LocalPlannerParameters::heading_stop_angle},
           {"progress_weight", &LocalPlannerParameters::progress_weight},
           {"path_weight", &LocalPlannerParameters::path_weight},
@@ -414,41 +529,62 @@ private:
            &LocalPlannerParameters::pursuit_lookahead_max},
           {"path_preview_distance",
            &LocalPlannerParameters::path_preview_distance},
-          {"path_refresh_distance",
-           &LocalPlannerParameters::path_refresh_distance},
           {"path_validation_distance",
            &LocalPlannerParameters::path_validation_distance},
+          {"path_deviation", &LocalPlannerParameters::path_deviation},
           {"heading_kp", &LocalPlannerParameters::heading_kp},
-          {"heading_ki", &LocalPlannerParameters::heading_ki},
-          {"heading_kd", &LocalPlannerParameters::heading_kd},
-          {"lateral_gain", &LocalPlannerParameters::lateral_gain},
           {"curvature_feedforward",
            &LocalPlannerParameters::curvature_feedforward},
           {"max_lateral_acceleration",
            &LocalPlannerParameters::max_lateral_acceleration},
           {"angular_command_acceleration",
            &LocalPlannerParameters::angular_command_acceleration},
-          {"angular_filter_time_constant",
-           &LocalPlannerParameters::angular_filter_time_constant},
           {"pursuit_weight", &LocalPlannerParameters::pursuit_weight},
-          {"dead_end_distance", &LocalPlannerParameters::dead_end_distance},
-          {"dead_end_front_gap", &LocalPlannerParameters::dead_end_front_gap},
-          {"dead_end_side_opening",
-           &LocalPlannerParameters::dead_end_side_opening},
-          {"u_turn_speed", &LocalPlannerParameters::u_turn_speed},
-          {"u_turn_lookahead", &LocalPlannerParameters::u_turn_lookahead},
-          {"u_turn_horizon", &LocalPlannerParameters::u_turn_horizon},
           {"goal_x", &LocalPlannerParameters::goal_x},
           {"goal_y", &LocalPlannerParameters::goal_y},
           {"goal_tolerance", &LocalPlannerParameters::goal_tolerance}};
+  const std::unordered_map<std::string, double GlobalPlannerParameters::*>
+      global_fields_{{"replan_period", &GlobalPlannerParameters::replan_period},
+                     {"frontier_weight",
+                      &GlobalPlannerParameters::frontier_weight},
+                     {"frontier_min_distance",
+                      &GlobalPlannerParameters::frontier_min_distance},
+                     {"frontier_switch_margin",
+                      &GlobalPlannerParameters::frontier_switch_margin},
+                     {"frontier_sticky_radius",
+                      &GlobalPlannerParameters::frontier_sticky_radius},
+                     {"frontier_sticky_bonus",
+                      &GlobalPlannerParameters::frontier_sticky_bonus},
+                     {"start_snap_radius",
+                      &GlobalPlannerParameters::start_snap_radius},
+                     {"goal_snap_radius",
+                      &GlobalPlannerParameters::goal_snap_radius},
+                     {"planning_margin",
+                      &GlobalPlannerParameters::planning_margin},
+                     {"clearance_cost_weight",
+                      &GlobalPlannerParameters::clearance_cost_weight},
+                     {"clearance_target",
+                      &GlobalPlannerParameters::clearance_target},
+                     {"planner_path_min_remaining",
+                      &GlobalPlannerParameters::path_min_remaining},
+                     {"planner_path_deviation",
+                      &GlobalPlannerParameters::path_deviation},
+                     {"planner_path_validation_distance",
+                      &GlobalPlannerParameters::path_validation_distance},
+                     {"smoothing_span",
+                      &GlobalPlannerParameters::smoothing_span},
+                     {"smoothing_clearance",
+                      &GlobalPlannerParameters::smoothing_clearance}};
   CostmapParameters map_parameters_;
   LocalPlannerParameters planner_parameters_;
+  GlobalPlannerParameters global_parameters_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
       parameter_callback_;
   std::uint64_t parameter_updates_{};
-  double stopped_seconds_{};
+  double stopped_seconds_{}, exhausted_seconds_{};
   std::unique_ptr<LocalCostmap> map_;
   std::unique_ptr<CostmapFollower> planner_;
+  std::unique_ptr<GlobalPlanner> global_;
   WallPose pose_{};
   Sectors sectors_{};
   WallCommand last_command_{};
@@ -458,8 +594,9 @@ private:
   double timeout_{}, robot_radius_{}, margin_{}, last_time_{}, started_{},
       progress_time_{}, elapsed_{-1};
   double distance_{}, max_command_{}, max_measured_{}, min_scan_{1e9},
-      computation_ms_{}, max_computation_ms_{};
-  bool have_odom_{}, have_scan_{}, valid_map_{}, running_{};
+      computation_ms_{}, max_computation_ms_{}, max_global_planner_ms_{};
+  bool have_odom_{}, have_scan_{}, valid_map_{}, running_{}, forced_replan_{},
+      no_frontier_{};
   std::uint64_t ticks_{};
   std::string frame_{"odom"}, previous_state_, fault_;
   Clock::time_point odom_time_{}, scan_time_{};
@@ -468,8 +605,9 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr command_pub_;
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr sectors_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_, reference_pub_,
-      trajectory_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_, plan_pub_,
+      reference_pub_, trajectory_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr frontier_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr raw_pub_, map_pub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;

@@ -12,7 +12,7 @@ from matplotlib.patches import Circle, Rectangle
 
 def world_shapes():
     world = (Path(__file__).resolve().parents[2] /
-             "maze_mouse_gazebo/worlds/maze_6x6.world")
+             "maze_mouse_gazebo/worlds/maze.world")
     shapes = []
     for model in ElementTree.parse(world).iterfind(".//model"):
         name = model.get("name", "")
@@ -51,11 +51,11 @@ def main():
                 color=colors[i % len(colors)], linewidth=1.25,
                 alpha=.9, label=label)
         ax.scatter(*points[0], color=colors[i % len(colors)], s=24, zorder=5)
-    ax.scatter([6.45], [5.5], color="#d33636", marker="*", s=110,
+    ax.scatter([5.45], [3.49], color="#d33636", marker="*", s=110,
                label="goal", zorder=6)
-    ax.set(xlim=(-.1, 6.9), ylim=(-.1, 6.9), aspect="equal",
+    ax.set(xlim=(-5.6, 6.0), ylim=(-5.6, 5.6), aspect="equal",
            xlabel="x (m)", ylabel="y (m)",
-           title="Gazebo odometry: path tracking tuning")
+           title="Gazebo odometry: global A* path")
     ax.grid(True, alpha=.2)
     ax.legend(loc="upper left", fontsize=8)
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,7 @@
 # Gazebo-tuned profile. Speeds: m/s, rad/s; distances: m; times: s.
 # Collision checking uses only the 0.14 m body radius plus 0.04 m clearance.
-# Soft inflation is disabled.
+# Soft inflation is disabled. The 14 m grid is fixed in the start-anchored
+# world frame and is used by both the global planner and the local tracker.
 /maze_navigator:
   ros__parameters:
     use_sim_time: true
@@ -10,61 +11,61 @@
     goal_x: 5.45
     goal_y: 3.49
     goal_tolerance: 0.14
-    max_linear_speed: 0.5
-    max_angular_speed: 1.8
-    linear_acceleration: 0.8
-    linear_deceleration: 1.0
-    angular_acceleration: 3.0
-    prediction_horizon: 0.75
-    reaction_time: 0.2
-    desired_left_distance: 0.28
+    # ---- 速度与运动模型 ----
+    max_linear_speed: 1.2       # 线速度指令上限 (m/s)；窄走廊还会被净空停止距离进一步限速
+    max_angular_speed: 1.8      # 角速度指令上限 (rad/s)
+    linear_acceleration: 1.0    # 预测/采样用线加速度 (m/s^2)
+    linear_deceleration: 1.2    # 预测/采样用线减速度 (m/s^2)；也用于窄走廊停止距离限速
+    angular_acceleration: 3.0   # 预测/采样用角加速度 (rad/s^2)
+    prediction_horizon: 0.75    # 轨迹预测时长 (s)
+    reaction_time: 0.2          # 执行/通信延迟预算 (s)
     side_sector_width_deg: 60.0
     front_sector_width_deg: 90.0
     minimum_wall_length: 0.24
     wall_fit_tolerance: 0.025
     data_timeout: 0.7
     costmap_resolution: 0.04
-    costmap_size: 8.0
+    costmap_size: 14.0
+    costmap_fixed: true
     robot_radius: 0.14
     inflation_margin: 0.04
     soft_cost_radius: 0.0
     laser_offset_x: -0.032
     laser_offset_y: 0.0
     laser_yaw: 0.0
-    recovery_enter_margin: 0.015
-    recovery_exit_margin: 0.035
-    recovery_speed: 0.3
-    no_path_probe_speed: 0.5
-    rotation_radius: 0.11
     heading_stop_angle: 1.2
-    target_lookahead: 1.05
-    target_tolerance: 0.2
-    wall_target_offset: 0.1
     clearance_weight: 1.0
     progress_weight: 4.0
     path_weight: 1.5
     heading_weight: 0.7
-    speed_weight: 1.0
-    linear_samples: 6
-    angular_samples: 30
-    pursuit_lookahead: 0.60
-    pursuit_lookahead_gain: 0.35
-    pursuit_lookahead_max: 0.90
+    speed_weight: 1.0           # 速度候选评分中的速度偏好权重
+    linear_samples: 6           # 线速度采样数
+    angular_samples: 30         # 角速度采样数
+    pursuit_lookahead: 0.45        # 基础 Pure Pursuit 前瞻距离 (m)
+    pursuit_lookahead_gain: 0.20   # 随速度增加的前瞻 (s)
+    pursuit_lookahead_max: 0.70    # 前瞻上限 (m)
     path_preview_distance: 1.20
-    path_refresh_distance: 0.90
     path_validation_distance: 1.50
+    path_deviation: 0.35
     heading_kp: 0.75
-    heading_ki: 0.02
-    heading_kd: 0.16
-    lateral_gain: 0.40
     curvature_feedforward: 1.0
-    max_lateral_acceleration: 0.65
-    angular_command_acceleration: 2.5
-    angular_filter_time_constant: 0.18
+    max_lateral_acceleration: 0.9   # 弯道横向加速度上限 (m/s^2)，决定弯道线速度
+    angular_command_acceleration: 2.5  # 角速度指令变化率上限 (rad/s^2)，限制转向突变
     pursuit_weight: 4.0
-    dead_end_distance: 3.0
-    dead_end_front_gap: 0.20
-    dead_end_side_opening: 0.75
-    u_turn_speed: 0.22
-    u_turn_lookahead: 0.20
-    u_turn_horizon: 0.50
+    # Global A* and frontier exploration.
+    replan_period: 0.5
+    frontier_weight: 2.5
+    frontier_min_distance: 0.4
+    frontier_switch_margin: 0.3
+    frontier_sticky_radius: 0.6
+    frontier_sticky_bonus: 0.5
+    start_snap_radius: 0.4
+    goal_snap_radius: 0.12
+    planning_margin: 0.05
+    clearance_cost_weight: 5.0
+    clearance_target: 0.45
+    planner_path_min_remaining: 0.4
+    planner_path_deviation: 0.35
+    planner_path_validation_distance: 1.0
+    smoothing_span: 1.5
+    smoothing_clearance: 0.32

@@ -29,7 +29,6 @@ struct Sector {
   double distance{std::numeric_limits<double>::quiet_NaN()};
   double minimum_range{std::numeric_limits<double>::infinity()};
   double center_minimum_range{std::numeric_limits<double>::infinity()};
-  double path_minimum_range{std::numeric_limits<double>::infinity()};
   std::size_t total{};
   std::size_t valid{};
   bool usable{};
@@ -39,14 +38,12 @@ struct Sectors {
   Sector front;
   Sector left;
   Sector right;
-  double all_minimum_range{std::numeric_limits<double>::infinity()};
   bool usable() const { return front.usable && left.usable && right.usable; }
 };
 
 Sector extract_sector(std::span<const float> ranges, double angle_min, double angle_increment,
                       double range_min, double range_max, double center, double width,
-                      double minimum_valid_fraction = 0.6,
-                      double swept_half_width = 0.18);
+                      double minimum_valid_fraction = 0.6);
 
 class GridMaze {
  public:

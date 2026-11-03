@@ -55,7 +55,7 @@ def main():
         nonlocal latest, terminal_at
         status_file.write(message.data + "\n")
         latest = json.loads(message.data)
-        if latest["state"] in ("COMPLETE", "FAULT") and terminal_at is None:
+        if latest["state"] in ("COMPLETE", "FAULT", "NO_FRONTIER") and terminal_at is None:
             terminal_at = time.monotonic()
 
     node.create_subscription(Odometry, "/odom", odom, qos_profile_sensor_data)

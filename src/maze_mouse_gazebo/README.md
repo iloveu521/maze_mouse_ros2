@@ -4,11 +4,7 @@
 
 `maze.launch.py` 和 `world.launch.py` 默认加载 [worlds/maze.world](worlds/maze.world)。此图约 10×10 m，坐标中心在世界原点；西侧入口位于 y≈-3.44 m，起点为 (-4.50, -3.44)，东侧出口位于 y≈3.49 m，导航目标为 (5.45, 3.49)。机器人出生位置和默认 costmap 导航目标已与此 world 对齐。`worlds/maze_6x6.world` 是另一张生成测试地图，仍保留供脚本和历史验证使用。
 
-默认的 C++20 costmap 路径跟踪导航见相邻的 [maze_mouse_navigation](../maze_mouse_navigation/README.md)；本包的 `maze.launch.py` 负责环境、机器人、TF 和可视化启动。
-
-![迷宫设计俯视图](docs/maze_6x6.svg)
-
-图为按 world 几何生成的设计图。[平滑中心线设计图](docs/maze_6x6_solution.svg)中的虚线表示一条沿通道中间行驶的参考轨迹，不要求贴左墙。
+默认的 C++20 costmap 路径跟踪导航见相邻的 [maze_mouse_navigation](../maze_mouse_navigation/README.md)；本包的 `maze.launch.py` 负责环境、机器人、TF 和可视化启动。`maze_6x6.world` 的设计图可以由 `scripts/generate_maze.py` 重新生成到 `docs/`（脚本会自动创建目录）。
 
 ## `maze_6x6.world` 生成地图参数
 
@@ -31,7 +27,7 @@
 
 布局包括直线、直角 L 弯、U 形回折及 Z/S 形连续反向转弯。**S 形为矩形墙组成的折线 S 弯**，没有复用老师 `s_shape_maze.world` 的大半径圆弧几何；它不是连续曲率的圆弧 S 弯。
 
-参考老师 `maps/` 中的模型结构，保留静态 box 墙、cylinder 墙端头、实体地板和深蓝灰配色；为 6 米尺度重新设计布局与墙厚，墙、端头均有与外观一致的 collision。入口和出口色块只有 visual，不会挡车或影响雷达。世界不依赖在线模型下载；以 scene ambient 设置环境光，使用合法的非空 world 名称。
+保留静态 box 墙、cylinder 墙端头、实体地板和深蓝灰配色；为 6 米尺度重新设计布局与墙厚，墙、端头均有与外观一致的 collision。入口和出口色块只有 visual，不会挡车或影响雷达。世界不依赖在线模型下载；以 scene ambient 设置环境光，使用合法的非空 world 名称。
 
 ## 居中行驶与速度优化
 
@@ -108,7 +104,7 @@ colcon test --packages-select maze_mouse_gazebo
 colcon test-result --verbose
 ```
 
-几何检查逐一核对全部相邻单元、全部外墙与两处开口，沿连线每 0.02 m 采样；以半径 0.17 m 的圆形包络验证通路余量，并检查导出的平滑参考轨迹。静态检查不能代替真实控制器的转弯和速度调试；实际仿真检查单独记录在 `docs/validation.md`。
+几何检查逐一核对全部相邻单元、全部外墙与两处开口，沿连线每 0.02 m 采样；以半径 0.17 m 的圆形包络验证通路余量，并检查导出的平滑参考轨迹。静态检查不能代替真实控制器的转弯和速度调试；默认世界的实际运行验证见根目录 [docs/validation.md](../../docs/validation.md)。
 
 ## 修改地图
 
@@ -127,19 +123,19 @@ src/maze_mouse_gazebo/
 ├── CMakeLists.txt / package.xml
 ├── config/maze_layout.json       # 参数、通路、出生点和目标点
 ├── config/centerline_reference.json # 中心航点与圆弧连接的参考轨迹
-├── worlds/maze_6x6.world         # 可直接加载的自包含 SDF 世界
+├── worlds/maze.world             # 默认 10 m × 10 m 世界（导航使用）
+├── worlds/maze_6x6.world         # 生成器输出的 6 × 6 测试世界
 ├── launch/world.launch.py       # 仅世界
 ├── launch/maze.launch.py        # 世界 + Burger + TF + RViz2
 ├── rviz/maze.rviz
 ├── scripts/generate_maze.py     # Python 标准库，无额外 pip 依赖
-├── scripts/validate_maze.py     # 拓扑与碰撞校验
-└── docs/                       # 原生 SVG 设计图及验证记录
+└── scripts/validate_maze.py     # 拓扑与碰撞校验
 ```
 
 ## 来源与使用记录
 
 - 课程要求：工作空间根目录《任务书1：机器人感知与控制综合实践.docx》。
-- 教师提供的结构参考：根目录 `maps/`，原文件保留。
+- 教师提供的原始 world 已从仓库移除；当前默认世界为 `worlds/maze.world`。
 - 机器人及插件：安装的 [ROBOTIS TurtleBot3 simulations](https://github.com/ROBOTIS-GIT/turtlebot3_simulations/tree/humble/turtlebot3_gazebo)，由其自身许可证约束；本包没有复制其模型源码。
 - AI 辅助范围：本包迷宫布局、world 生成器、启动配置、设计图、几何检查和说明文档。用于课程材料时，请按任务书记录后续人工修改、调试和实测过程；组员分工应由实际参与者填写。
-- 实际完成的验证与限制见 [验证记录](docs/validation.md)。
+- 默认世界的实际运行验证见 [docs/validation.md](../../docs/validation.md)。

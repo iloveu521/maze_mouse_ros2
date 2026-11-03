@@ -20,7 +20,7 @@ maze_navigator:
     side_wall_max: 0.70
     front_stop_distance: 0.20
     observation_scans: 3
-    max_linear_speed: 0.20
+    max_linear_speed: 1.0
     max_angular_speed: 0.60
     linear_acceleration: 0.35
     heading_gain: 1.6

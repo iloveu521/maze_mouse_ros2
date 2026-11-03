@@ -35,16 +35,14 @@ Direction direction_to(Cell from, Cell to) {
 Sector extract_sector(std::span<const float> ranges, double angle_min,
                       double angle_increment, double range_min,
                       double range_max, double center, double width,
-                      double minimum_valid_fraction,
-                      double swept_half_width) {
+                      double minimum_valid_fraction) {
   Sector result;
   if (ranges.empty() || !std::isfinite(angle_min) ||
       !std::isfinite(angle_increment) || angle_increment == 0.0 ||
       !(range_max > range_min && range_min >= 0.0) ||
       !std::isfinite(range_max) || !std::isfinite(center) ||
       !(width > 0.0 && width <= pi) ||
-      !(minimum_valid_fraction > 0.0 && minimum_valid_fraction <= 1.0) ||
-      !std::isfinite(swept_half_width) || swept_half_width <= 0.0) {
+      !(minimum_valid_fraction > 0.0 && minimum_valid_fraction <= 1.0)) {
     return result;
   }
   std::vector<double> distances;
@@ -64,10 +62,6 @@ Sector extract_sector(std::span<const float> ranges, double angle_min,
       if (std::abs(delta) <= center_half_width)
         result.center_minimum_range = std::min(
             result.center_minimum_range, range_max * std::cos(delta));
-      if (std::abs(delta) < pi / 2 &&
-          std::abs(range_max * std::sin(delta)) <= swept_half_width)
-        result.path_minimum_range = std::min(
-            result.path_minimum_range, range_max * std::cos(delta));
       ++result.valid;
     } else if (std::isfinite(raw) && raw >= range_min && raw <= range_max) {
       result.minimum_range = std::min(result.minimum_range, raw);
@@ -75,10 +69,6 @@ Sector extract_sector(std::span<const float> ranges, double angle_min,
       if (std::abs(delta) <= center_half_width)
         result.center_minimum_range = std::min(
             result.center_minimum_range, raw * std::cos(delta));
-      if (std::abs(delta) < pi / 2 &&
-          std::abs(raw * std::sin(delta)) <= swept_half_width)
-        result.path_minimum_range = std::min(
-            result.path_minimum_range, raw * std::cos(delta));
       ++result.valid;
     }
   }

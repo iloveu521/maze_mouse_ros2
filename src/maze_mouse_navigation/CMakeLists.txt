@@ -12,7 +12,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
-add_library(maze_navigation_core src/core.cpp src/left_wall.cpp src/scan_geometry.cpp src/local_costmap.cpp)
+add_library(maze_navigation_core src/core.cpp src/left_wall.cpp src/scan_geometry.cpp src/local_costmap.cpp src/global_planner.cpp)
 target_include_directories(maze_navigation_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)

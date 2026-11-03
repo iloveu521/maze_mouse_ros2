@@ -10,7 +10,6 @@ struct WallSegment {
 struct ScanGeometryParameters {
   double side_degrees{60}, front_degrees{90};
   double minimum_wall_length{0.24}, fit_tolerance{0.025};
-  double swept_half_width{0.18};
 };
 struct ScanGeometry {
   Sectors sectors;

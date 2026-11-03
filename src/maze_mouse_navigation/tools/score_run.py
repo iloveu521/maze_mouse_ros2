@@ -37,7 +37,7 @@ def steering(path):
 
 def wall_clearance(path):
     world = (Path(__file__).resolve().parents[2] /
-             "maze_mouse_gazebo/worlds/maze_6x6.world")
+             "maze_mouse_gazebo/worlds/maze.world")
     if not world.exists() or not path.exists():
         return None
     shapes = []
@@ -86,8 +86,12 @@ def main():
             "stopped_sim_s": result["stopped_sim_s"],
             "distance_m": result["odom_distance_m"],
             "min_wall_clearance_m": wall_clearance(prefix.with_suffix(".odom.csv")),
-            "recoveries": changes.get("RECOVER_CLEARANCE", 0),
+            "planner_target": result.get("planner_target"),
+            "replans": result.get("replans"),
+            "no_frontier": changes.get("NO_FRONTIER", 0),
             "blocked": changes.get("BLOCKED", 0),
+            "max_global_planner_ms": result.get("max_global_planner_ms"),
+            "path_length_m": result.get("path_length_m"),
             "cmd": steering(prefix.with_suffix(".commands.csv")),
             "odom": steering(prefix.with_suffix(".odom.csv")),
         }, ensure_ascii=False))
