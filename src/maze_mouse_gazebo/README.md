@@ -84,6 +84,13 @@ export TURTLEBOT3_MODEL=burger
 ros2 run turtlebot3_teleop teleop_keyboard
 ```
 
+`maze.launch.py` 会自动设置 `TURTLEBOT3_MODEL=burger`，并从已安装的
+`turtlebot3_gazebo` 包读取 `urdf/turtlebot3_burger.urdf` 和
+`models/turtlebot3_burger/model.sdf`。因此本包不包含 TurtleBot3 的模型源码、网格或材质；
+这些资源来自 [ROBOTIS-GIT/turtlebot3_simulations](https://github.com/ROBOTIS-GIT/turtlebot3_simulations/tree/humble/turtlebot3_gazebo)，
+须遵循其上游许可证。导航实验使用 Burger 的差速驱动、360° 激光雷达和轮式里程计，
+分别通过 `/cmd_vel`、`/scan` 和 `/odom` 与模型交互。
+
 RViz 固定坐标为 `odom`，显示机器人、TF 和 `/scan`。Gazebo world 的墙体不会自动显示在 RViz；当前实验没有启动 SLAM、地图服务或全局导航。世界坐标用于本 README 中的出生点/目标点；控制节点若使用 `/odom` 做到达判断，应先确认当前版本插件的里程计原点与启动位姿的关系。
 
 ## 检查

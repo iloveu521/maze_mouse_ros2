@@ -6,6 +6,21 @@
 机器人只使用 `/scan` 和 `/odom` 在线建图，在固定占用栅格上做全局 A*，目标未知时用 frontier
 探索，再由 Pure Pursuit 跟踪路径并做局部碰撞筛选。控制器不加载 world、迷宫连通图或预设路线。
 
+## 机器人模型说明
+
+本项目在 Gazebo 中使用 **TurtleBot3 Burger** 作为仿真机器人。模型不是本仓库自行制作或复制的，
+而是通过 ROS 2 Humble 安装的 `turtlebot3_gazebo` 软件包加载，模型来源为
+[ROBOTIS-GIT/turtlebot3_simulations](https://github.com/ROBOTIS-GIT/turtlebot3_simulations/tree/humble/turtlebot3_gazebo)。
+
+启动文件 [maze.launch.py](src/maze_mouse_gazebo/launch/maze.launch.py) 会固定设置
+`TURTLEBOT3_MODEL=burger`，并从已安装的软件包读取
+`urdf/turtlebot3_burger.urdf` 和 `models/turtlebot3_burger/model.sdf`，因此运行前需要安装
+`ros-humble-turtlebot3` 与 `ros-humble-turtlebot3-simulations`。本项目使用模型提供的差速驱动、
+360° 激光雷达和轮式里程计，导航算法通过 `/scan`、`/odom` 输入，并向 `/cmd_vel` 输出速度指令。
+
+本仓库只负责迷宫世界、启动配置和导航算法，不重新分发 TurtleBot3 模型或 Gazebo 插件；相关模型、
+网格、材质和插件应遵循 ROBOTIS 及其上游软件包附带的许可证。
+
 ![系统架构](docs/architecture.svg)
 
 ## 项目内容

@@ -8,6 +8,23 @@ global A* search over that grid, explores with frontiers when the goal is unknow
 resulting path with Pure Pursuit plus a collision-checked local sampler. The controller loads no
 world file, maze graph or preset route.
 
+## Robot model
+
+This project uses the **TurtleBot3 Burger** as its Gazebo robot. The model is not authored or
+copied into this repository; it is loaded from the ROS 2 Humble `turtlebot3_gazebo` package,
+provided by [ROBOTIS-GIT/turtlebot3_simulations](https://github.com/ROBOTIS-GIT/turtlebot3_simulations/tree/humble/turtlebot3_gazebo).
+
+The [maze.launch.py](src/maze_mouse_gazebo/launch/maze.launch.py) launch file sets
+`TURTLEBOT3_MODEL=burger` and reads `urdf/turtlebot3_burger.urdf` plus
+`models/turtlebot3_burger/model.sdf` from the installed package. Install
+`ros-humble-turtlebot3` and `ros-humble-turtlebot3-simulations` before running the simulation.
+The project uses the model's differential drive, 360-degree lidar and wheel odometry; the
+navigation stack consumes `/scan` and `/odom` and publishes velocity commands on `/cmd_vel`.
+
+This repository contains the maze world, launch configuration and navigation algorithms only. It
+does not redistribute the TurtleBot3 model or Gazebo plugins; their meshes, materials, plugins and
+other bundled assets remain subject to the licenses supplied by ROBOTIS and the upstream packages.
+
 ![System architecture](docs/architecture.svg)
 
 ## What the project does
