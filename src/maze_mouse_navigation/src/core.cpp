@@ -60,24 +60,25 @@ Sector extract_sector(std::span<const float> ranges, double angle_min,
     if (std::isinf(raw) && raw > 0) {
       distances.push_back(range_max * std::cos(delta));
       if (std::abs(delta) <= center_half_width)
-        result.center_minimum_range = std::min(
-            result.center_minimum_range, range_max * std::cos(delta));
+        result.center_minimum_range =
+            std::min(result.center_minimum_range, range_max * std::cos(delta));
       ++result.valid;
     } else if (std::isfinite(raw) && raw >= range_min && raw <= range_max) {
       result.minimum_range = std::min(result.minimum_range, raw);
       distances.push_back(raw * std::cos(delta));
       if (std::abs(delta) <= center_half_width)
-        result.center_minimum_range = std::min(
-            result.center_minimum_range, raw * std::cos(delta));
+        result.center_minimum_range =
+            std::min(result.center_minimum_range, raw * std::cos(delta));
       ++result.valid;
     }
   }
   // Reject truncated sectors as well as sectors dominated by invalid samples.
   const double coverage =
       static_cast<double>(result.total) * std::abs(angle_increment);
-  result.usable = result.total >= 3 && coverage >= width * 0.8 &&
-                  static_cast<double>(result.valid) >=
-                      minimum_valid_fraction * result.total;
+  result.usable =
+      result.total >= 3 &&
+      coverage >= width * 0.8 & static_cast<double>(result.valid) >=
+                                    minimum_valid_fraction * result.total;
   if (!result.usable || distances.empty()) {
     return result;
   }
